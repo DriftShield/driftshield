@@ -1,0 +1,823 @@
+{
+  "address": "BQtqZ6H72cbMjmSzm6Bv5zKYBF9a6ZwCnbZJNYWNK1xj",
+  "metadata": {
+    "name": "prediction_bets",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "admin_finalize_resolution",
+      "docs": [
+        "Admin manually finalizes a disputed market"
+      ],
+      "discriminator": [
+        157,
+        239,
+        197,
+        67,
+        35,
+        23,
+        138,
+        144
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "final_outcome",
+          "type": {
+            "defined": {
+              "name": "BetOutcome"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "auto_resolve_market",
+      "docs": [
+        "Auto-resolve market using oracle data (anyone can call after auto_resolution_time)"
+      ],
+      "discriminator": [
+        86,
+        100,
+        187,
+        222,
+        143,
+        231,
+        218,
+        185
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "winning_outcome",
+          "type": {
+            "defined": {
+              "name": "BetOutcome"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "claim_payout",
+      "docs": [
+        "Claim payout for a winning bet"
+      ],
+      "discriminator": [
+        127,
+        240,
+        132,
+        62,
+        227,
+        198,
+        146,
+        133
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market.market_id",
+                "account": "Market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bet",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "bet.bet_index",
+                "account": "Bet"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "bet"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "dispute_resolution",
+      "docs": [
+        "Dispute an oracle resolution (within 48h dispute period)"
+      ],
+      "discriminator": [
+        89,
+        169,
+        106,
+        71,
+        131,
+        77,
+        122,
+        232
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "disputer",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "reason",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "emergency_withdraw",
+      "docs": [
+        "Emergency withdrawal - only for authority, only after 30 days"
+      ],
+      "discriminator": [
+        239,
+        45,
+        203,
+        64,
+        150,
+        73,
+        218,
+        92
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "finalize_oracle_resolution",
+      "docs": [
+        "Finalize oracle resolution after dispute period expires (no disputes)"
+      ],
+      "discriminator": [
+        141,
+        212,
+        13,
+        164,
+        37,
+        26,
+        125,
+        254
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_market",
+      "docs": [
+        "Initialize a new market for betting (with optional oracle)"
+      ],
+      "discriminator": [
+        35,
+        35,
+        189,
+        193,
+        155,
+        48,
+        170,
+        203
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "market_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "market_id",
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "type": "string"
+        },
+        {
+          "name": "end_timestamp",
+          "type": "i64"
+        },
+        {
+          "name": "oracle_feed",
+          "type": {
+            "option": "pubkey"
+          }
+        }
+      ]
+    },
+    {
+      "name": "place_bet",
+      "docs": [
+        "Place a bet on a market"
+      ],
+      "discriminator": [
+        222,
+        62,
+        67,
+        220,
+        63,
+        166,
+        126,
+        33
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "market_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bet",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "market.total_yes_bets.checked_add(market.total_no_bets)",
+                "account": "Market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "market_id",
+          "type": "string"
+        },
+        {
+          "name": "outcome",
+          "type": {
+            "defined": {
+              "name": "BetOutcome"
+            }
+          }
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "resolve_market",
+      "docs": [
+        "Resolve a market with the winning outcome"
+      ],
+      "discriminator": [
+        155,
+        23,
+        80,
+        173,
+        46,
+        74,
+        23,
+        239
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "winning_outcome",
+          "type": {
+            "defined": {
+              "name": "BetOutcome"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Bet",
+      "discriminator": [
+        147,
+        23,
+        35,
+        59,
+        15,
+        75,
+        155,
+        32
+      ]
+    },
+    {
+      "name": "Market",
+      "discriminator": [
+        219,
+        190,
+        213,
+        55,
+        0,
+        227,
+        198,
+        154
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "MarketClosed",
+      "msg": "Market has already closed"
+    },
+    {
+      "code": 6001,
+      "name": "MarketResolved",
+      "msg": "Market has already been resolved"
+    },
+    {
+      "code": 6002,
+      "name": "MarketStillOpen",
+      "msg": "Market is still open"
+    },
+    {
+      "code": 6003,
+      "name": "MarketNotResolved",
+      "msg": "Market has not been resolved yet"
+    },
+    {
+      "code": 6004,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    },
+    {
+      "code": 6005,
+      "name": "AlreadyClaimed",
+      "msg": "This bet has already been claimed"
+    },
+    {
+      "code": 6006,
+      "name": "LosingBet",
+      "msg": "This bet did not win"
+    },
+    {
+      "code": 6007,
+      "name": "EmergencyDelayNotMet",
+      "msg": "Emergency withdrawal delay not met - must wait 30 days after market end"
+    },
+    {
+      "code": 6008,
+      "name": "NoOracleFeed",
+      "msg": "Market does not have an oracle feed configured"
+    },
+    {
+      "code": 6009,
+      "name": "AutoResolutionTooEarly",
+      "msg": "Auto-resolution time has not passed yet"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidOracleFeed",
+      "msg": "Invalid oracle feed data"
+    },
+    {
+      "code": 6011,
+      "name": "OracleNoData",
+      "msg": "Oracle has no data available"
+    },
+    {
+      "code": 6012,
+      "name": "NotOracleResolved",
+      "msg": "Market was not oracle-resolved"
+    },
+    {
+      "code": 6013,
+      "name": "NoDisputePeriod",
+      "msg": "No dispute period configured"
+    },
+    {
+      "code": 6014,
+      "name": "DisputePeriodExpired",
+      "msg": "Dispute period has expired"
+    },
+    {
+      "code": 6015,
+      "name": "NotDisputed",
+      "msg": "Market has not been disputed"
+    },
+    {
+      "code": 6016,
+      "name": "AlreadyDisputed",
+      "msg": "Market has already been disputed"
+    },
+    {
+      "code": 6017,
+      "name": "DisputePeriodNotExpired",
+      "msg": "Dispute period has not expired yet"
+    }
+  ],
+  "types": [
+    {
+      "name": "Bet",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "market_id",
+            "type": "string"
+          },
+          {
+            "name": "outcome",
+            "type": {
+              "defined": {
+                "name": "BetOutcome"
+              }
+            }
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "bet_index",
+            "type": "u64"
+          },
+          {
+            "name": "is_claimed",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BetOutcome",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Yes"
+          },
+          {
+            "name": "No"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Market",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "market_id",
+            "type": "string"
+          },
+          {
+            "name": "title",
+            "type": "string"
+          },
+          {
+            "name": "end_timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "total_yes_bets",
+            "type": "u64"
+          },
+          {
+            "name": "total_no_bets",
+            "type": "u64"
+          },
+          {
+            "name": "total_yes_amount",
+            "type": "u64"
+          },
+          {
+            "name": "total_no_amount",
+            "type": "u64"
+          },
+          {
+            "name": "is_resolved",
+            "type": "bool"
+          },
+          {
+            "name": "winning_outcome",
+            "type": {
+              "option": {
+                "defined": {
+                  "name": "BetOutcome"
+                }
+              }
+            }
+          },
+          {
+            "name": "oracle_feed",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "auto_resolution_time",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "resolution_status",
+            "type": {
+              "defined": {
+                "name": "ResolutionStatus"
+              }
+            }
+          },
+          {
+            "name": "disputed",
+            "type": "bool"
+          },
+          {
+            "name": "dispute_end_time",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "dispute_reason",
+            "type": "string"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ResolutionStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Pending"
+          },
+          {
+            "name": "OracleResolved"
+          },
+          {
+            "name": "Disputed"
+          },
+          {
+            "name": "AdminResolved"
+          },
+          {
+            "name": "Finalized"
+          }
+        ]
+      }
+    }
+  ]
+}

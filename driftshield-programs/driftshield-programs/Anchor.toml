@@ -1,0 +1,26 @@
+[toolchain]
+package_manager = "yarn"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+driftshield_programs = "D7tAZjGDnfAPBpjFw8XXwzzivDi2mfXP26m3vBsz4U9a"
+insurance = "HChpsDuNBvSDtLhqURjMt4ue7eCii1h7c94keGayEMCS"
+prediction-market = "CVpXTYMdwfjy9LKneXf1Hs79mBUK1txPUAKTgEY5Vr9U"
+
+[programs.devnet]
+driftshield_programs = "34HbFEsYeFa1NrdUyShWXKB36NZ5p4tCjogDbg2p98xm"
+insurance = "2YbvCZwBSQN9Pe8hmcPDHk2MBCpwHk4tZ11WVuB7LXwC"
+prediction_market = "APvSf7hDoZDyYgshb4LPm2mpBanbiWgdqJ53TKvKQ7Da"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"

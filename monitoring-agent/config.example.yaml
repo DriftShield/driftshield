@@ -1,0 +1,109 @@
+# DriftShield Monitoring Agent Configuration Example
+# Copy this file to config.yaml and fill in your values
+
+# DriftShield Platform Configuration
+driftshield:
+  api_url: https://api.driftshield.io
+  api_key: YOUR_DRIFTSHIELD_API_KEY_HERE
+  model_id: YOUR_MODEL_ID_HERE
+
+# Model Configuration
+model:
+  name: My ML Model
+  type: classification  # classification, regression, clustering, time_series
+  
+  # Where to fetch metrics from
+  endpoint: https://your-model-api.com/metrics
+  fetcher_type: http  # http, local, s3
+  
+  # Authentication for model endpoint
+  auth:
+    method: bearer  # bearer, api_key, basic, none
+    token: YOUR_MODEL_API_TOKEN  # For bearer auth
+    # api_key: YOUR_API_KEY  # For api_key auth
+    # username: user  # For basic auth
+    # password: pass  # For basic auth
+  
+  # Baseline metrics from training/validation
+  # These are compared against current metrics to detect drift
+  baseline_metrics:
+    accuracy: 0.95
+    precision: 0.92
+    recall: 0.94
+    f1_score: 0.93
+    # Add more metrics as needed for your model
+
+# Monitoring Configuration
+monitoring:
+  frequency_hours: 1  # How often to run monitoring
+  drift_threshold: 5.0  # Drift percentage threshold (%)
+  drift_method: percentage  # percentage, ks_test, psi
+  
+  # Data quality checks
+  data_quality:
+    enabled: true
+    check_missing: true
+    check_outliers: true
+    max_missing_pct: 5.0
+    outlier_threshold: 3.0  # Standard deviations
+  
+  # Feature-level drift detection
+  feature_drift:
+    enabled: true
+    method: ks_test  # ks_test, chi_square, psi
+    threshold: 0.05
+    top_n_features: 10  # Track top N drifted features
+
+# Solana Configuration (Optional but recommended)
+solana:
+  enabled: true
+  network: mainnet-beta  # devnet, testnet, mainnet-beta
+  rpc_url: https://api.mainnet-beta.solana.com
+  wallet_path: ~/.config/solana/id.json  # Path to Solana keypair
+  
+  # Program IDs (from DriftShield)
+  model_registry_program: YOUR_PROGRAM_ID_HERE
+
+# Shadow Drive Configuration (Decentralized storage)
+shadow_drive:
+  enabled: true
+  storage_account: YOUR_SHADOW_DRIVE_ACCOUNT_HERE
+
+# Alerts & Notifications
+alerts:
+  # Webhook for receiving alerts
+  webhook_url: https://your-webhook.com/alerts
+  
+  # Email alerts (optional)
+  email:
+    enabled: false
+    smtp_host: smtp.gmail.com
+    smtp_port: 587
+    from_email: alerts@yourdomain.com
+    to_emails:
+      - your@email.com
+  
+  # Alert conditions
+  conditions:
+    - type: drift_detected
+      notify: true
+    - type: critical_drift  # > 2x threshold
+      notify: true
+      priority: high
+    - type: data_quality_issue
+      notify: true
+
+# Logging Configuration
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  file: logs/agent.log
+  max_size_mb: 10
+  backup_count: 5
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Retry Configuration
+retry:
+  max_attempts: 3
+  backoff_factor: 2  # Exponential backoff
+  max_wait_seconds: 60
+

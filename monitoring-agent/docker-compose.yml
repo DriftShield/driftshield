@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  agent:
+    build: .
+    image: driftshield-agent:latest
+    container_name: driftshield-agent
+    
+    volumes:
+      # Mount config file
+      - ./config.yaml:/app/config.yaml:ro
+      
+      # Mount Solana keypair (optional)
+      - ~/.config/solana:/root/.config/solana:ro
+      
+      # Mount logs directory
+      - ./logs:/app/logs
+    
+    environment:
+      # Override with environment variables
+      - DRIFTSHIELD_API_KEY=${DRIFTSHIELD_API_KEY}
+      - DRIFTSHIELD_MODEL_ID=${DRIFTSHIELD_MODEL_ID}
+      - SOLANA_RPC_URL=${SOLANA_RPC_URL:-https://api.mainnet-beta.solana.com}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    
+    restart: unless-stopped
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+# Networks
+networks:
+  default:
+    name: driftshield-network
+

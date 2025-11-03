@@ -1,0 +1,49 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# Solana keypairs and private keys
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!next.config.json
+!lib/solana/prediction_bets_idl.json
+id.json
+keypair.json
+wallet.json
+
+# Private keys
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Secrets
+secrets/
+.secrets
+credentials.json
