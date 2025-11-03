@@ -48,10 +48,12 @@ export default function MyBetsPage() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'won' | 'lost'>('all')
 
   useEffect(() => {
-    if (connected && publicKey) {
+    if (publicKey) {
       fetchUserBets()
+    } else {
+      setLoading(false)
     }
-  }, [connected, publicKey])
+  }, [publicKey])
 
   const fetchUserBets = async () => {
     if (!publicKey) return
@@ -186,7 +188,7 @@ export default function MyBetsPage() {
     totalStaked: bets.reduce((sum, b) => sum + b.amount, 0),
   }
 
-  if (!connected) {
+  if (!publicKey) {
     return (
       <div className="min-h-screen bg-background">
         <DashboardNav />

@@ -527,7 +527,7 @@ export default function ProgramsPage() {
           <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
             <p className="text-green-800 font-medium mb-2">Transaction Successful!</p>
             <a
-              href={`https://explorer.solana.com/tx/${txSignature}?cluster=devnet`}
+              href={`https://solscan.io/tx/${txSignature}?cluster=devnet`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-blue-600 hover:underline text-sm"

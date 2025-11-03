@@ -603,7 +603,7 @@ console.log("Market address:", marketPDA.toBase58())`
                     {[
                       {
                         title: "Solana Explorer (Devnet)",
-                        url: "https://explorer.solana.com/?cluster=devnet",
+                        url: "https://solscan.io/?cluster=devnet",
                         description: "View transactions and accounts on devnet"
                       },
                       {

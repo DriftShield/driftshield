@@ -18,6 +18,7 @@ import {
   Activity,
   BarChart3,
   Book,
+  User,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { WalletButton } from "@/components/wallet-button"
@@ -27,10 +28,10 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/markets", label: "Markets", icon: TrendingUp },
   { href: "/dashboard/bets", label: "My Bets", icon: Activity },
+  { href: "/dashboard/profile", label: "Profile", icon: User },
+  { href: "/dashboard/leaderboard", label: "Leaderboard", icon: Trophy },
   { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/dashboard/docs", label: "Docs", icon: Book },
-  { href: "/dashboard/wallet", label: "Wallet", icon: Wallet },
-  { href: "/dashboard/leaderboard", label: "Leaderboard", icon: Trophy },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ]
 

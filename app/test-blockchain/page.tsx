@@ -203,7 +203,7 @@ export default function TestBlockchainPage() {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Explorer:</span>
                 <a
-                  href={`https://explorer.solana.com/address/${walletAddress}?cluster=devnet`}
+                  href={`https://solscan.io/address/${walletAddress}?cluster=devnet`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-500 hover:underline text-xs"
@@ -302,7 +302,7 @@ function ProgramStatus({ name, programId, verified }: { name: string; programId:
         <p className="font-mono text-xs text-muted-foreground">{programId}</p>
       </div>
       <a
-        href={`https://explorer.solana.com/address/${programId}?cluster=devnet`}
+        href={`https://solscan.io/address/${programId}?cluster=devnet`}
         target="_blank"
         rel="noopener noreferrer"
         className="text-xs text-blue-500 hover:underline"

@@ -1127,7 +1127,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                             </div>
                             {bet.txSignature && (
                               <a
-                                href={`https://explorer.solana.com/tx/${bet.txSignature}?cluster=devnet`}
+                                href={`https://solscan.io/tx/${bet.txSignature}?cluster=devnet`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-1 text-xs text-primary hover:underline"
@@ -1235,7 +1235,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                   <div>
                     <div className="text-muted-foreground mb-1">Program</div>
                     <a
-                      href={`https://explorer.solana.com/address/${PROGRAM_ID.toString()}?cluster=devnet`}
+                      href={`https://solscan.io/address/${PROGRAM_ID.toString()}?cluster=devnet`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 text-primary hover:underline text-xs"

@@ -86,7 +86,7 @@ export function X402PaymentButton({
           <AlertDescription>
             Payment confirmed! Transaction:{' '}
             <a
-              href={`https://explorer.solana.com/tx/${paymentStatus.signature}?cluster=devnet`}
+              href={`https://solscan.io/tx/${paymentStatus.signature}?cluster=devnet`}
               target="_blank"
               rel="noopener noreferrer"
               className="underline"

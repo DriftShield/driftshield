@@ -128,7 +128,7 @@ export default function BlockchainTransactionExample() {
         <div className="p-4 bg-green-50 border border-green-200 rounded">
           <p className="text-green-800 font-medium">Transaction successful!</p>
           <a
-            href={`https://explorer.solana.com/tx/${signature}?cluster=devnet`}
+            href={`https://solscan.io/tx/${signature}?cluster=devnet`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-600 hover:underline text-sm"

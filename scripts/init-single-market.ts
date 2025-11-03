@@ -70,7 +70,7 @@ async function initializeSingleMarket() {
   );
 
   console.log(`\n✅ Success!`);
-  console.log(`📝 Transaction: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
+  console.log(`📝 Transaction: https://solscan.io/tx/${signature}?cluster=devnet`);
 }
 
 initializeSingleMarket().catch((error) => {

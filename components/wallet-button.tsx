@@ -1,8 +1,10 @@
 'use client';
 
-import { useWallet } from '@/lib/wallet-context';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { Button } from '@/components/ui/button';
-import { Wallet, LogOut } from 'lucide-react';
+import { Wallet, LogOut, Copy, Check } from 'lucide-react';
+import { useState } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,37 +15,50 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 export function WalletButton() {
-  const { connected, connecting, walletAddress, user, connect, disconnect, error } = useWallet();
+  const { publicKey, disconnect, connecting } = useWallet();
+  const { setVisible } = useWalletModal();
+  const [copied, setCopied] = useState(false);
 
-  if (connected && user) {
+  const copyAddress = () => {
+    if (publicKey) {
+      navigator.clipboard.writeText(publicKey.toString());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  if (publicKey) {
+    const address = publicKey.toString();
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2 w-full justify-start">
             <Wallet className="h-4 w-4" />
-            {walletAddress?.slice(0, 4)}...{walletAddress?.slice(-4)}
+            <span className="font-mono text-xs">
+              {address.slice(0, 4)}...{address.slice(-4)}
+            </span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel>My Account</DropdownMenuLabel>
+          <DropdownMenuLabel>Wallet Connected</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <div className="px-2 py-1.5 text-sm">
-            <div className="font-medium">{user.displayName}</div>
-            <div className="text-xs text-muted-foreground">@{user.username}</div>
+          <div className="px-2 py-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-xs text-muted-foreground truncate">
+                {address.slice(0, 12)}...{address.slice(-12)}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={copyAddress}
+                className="h-7 w-7 p-0"
+              >
+                {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+              </Button>
+            </div>
           </div>
-          {user.balance && (
-            <>
-              <DropdownMenuSeparator />
-              <div className="px-2 py-1.5 text-sm">
-                <div className="font-medium">Balance</div>
-                <div className="text-xs text-muted-foreground">
-                  {(user.balance.available / 1e6).toFixed(2)} USDC
-                </div>
-              </div>
-            </>
-          )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={disconnect} className="gap-2 text-red-600">
+          <DropdownMenuItem onClick={disconnect} className="gap-2 text-red-600 cursor-pointer">
             <LogOut className="h-4 w-4" />
             Disconnect
           </DropdownMenuItem>
@@ -53,18 +68,14 @@ export function WalletButton() {
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <Button
-        onClick={connect}
-        disabled={connecting}
-        className="gap-2"
-      >
-        <Wallet className="h-4 w-4" />
-        {connecting ? 'Connecting...' : 'Connect Wallet'}
-      </Button>
-      {error && (
-        <p className="text-xs text-red-500">{error}</p>
-      )}
-    </div>
+    <Button
+      onClick={() => setVisible(true)}
+      disabled={connecting}
+      className="gap-2 w-full"
+      variant="default"
+    >
+      <Wallet className="h-4 w-4" />
+      {connecting ? 'Connecting...' : 'Connect Wallet'}
+    </Button>
   );
 }
