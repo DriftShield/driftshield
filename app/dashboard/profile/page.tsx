@@ -28,6 +28,7 @@ interface Bet {
   amount: number
   timestamp: number
   claimed: boolean
+  payout?: number
 }
 
 interface UserProfile {
@@ -36,6 +37,22 @@ interface UserProfile {
   avatar: string
   twitter: string
   website: string
+}
+
+interface DailyData {
+  date: string
+  profit: number
+  bets: number
+  cumulative: number
+}
+
+interface MarketPerformance {
+  marketId: string
+  marketTitle: string
+  invested: number
+  returned: number
+  roi: number
+  bets: number
 }
 
 export default function ProfilePage() {
@@ -58,6 +75,13 @@ export default function ProfilePage() {
   // Wallet
   const [balance, setBalance] = useState(0)
   const [transactions, setTransactions] = useState<any[]>([])
+
+  // Portfolio Analytics
+  const [dailyData, setDailyData] = useState<DailyData[]>([])
+  const [marketPerformance, setMarketPerformance] = useState<MarketPerformance[]>([])
+  const [roi, setRoi] = useState(0)
+  const [largestWin, setLargestWin] = useState(0)
+  const [largestLoss, setLargestLoss] = useState(0)
 
   // Profile
   const [profile, setProfile] = useState<UserProfile>({
@@ -132,7 +156,11 @@ export default function ProfilePage() {
       let staked = 0
       let won = 0
       let winCount = 0
+      let maxWin = 0
+      let maxLoss = 0
       const bets: Bet[] = []
+      const dailyMap = new Map<string, { profit: number, bets: number }>()
+      const marketPerformanceMap = new Map<string, { invested: number, returned: number, bets: number, title: string }>()
 
       userBets.forEach((bet: any) => {
         const betData = bet.account
@@ -141,6 +169,21 @@ export default function ProfilePage() {
 
         const market = marketMap.get(betData.marketId)
         if (market) {
+          const marketId = betData.marketId
+          const marketTitle = market.title || 'Unknown Market'
+          const timestamp = betData.timestamp.toNumber()
+          const dateStr = new Date(timestamp * 1000).toISOString().split('T')[0]
+
+          // Update market performance map
+          if (!marketPerformanceMap.has(marketId)) {
+            marketPerformanceMap.set(marketId, { invested: 0, returned: 0, bets: 0, title: marketTitle })
+          }
+          const marketPerf = marketPerformanceMap.get(marketId)!
+          marketPerf.invested += amount
+          marketPerf.bets += 1
+
+          let payout = 0
+
           // Check if bet won
           if (market.isResolved && market.winningOutcome) {
             const userOutcome = betData.outcome.yes ? "Yes" : "No"
@@ -152,7 +195,6 @@ export default function ProfilePage() {
               const totalNo = market.totalNoAmount.toNumber() / 1e9
               const totalPool = totalYes + totalNo
 
-              let payout = 0
               if (userOutcome === "Yes") {
                 payout = (amount / totalYes) * totalPool
               } else {
@@ -160,16 +202,31 @@ export default function ProfilePage() {
               }
               won += payout
               winCount++
+              marketPerf.returned += payout
+
+              // Track profit/loss
+              const profit = payout - amount
+              maxWin = Math.max(maxWin, profit)
+              maxLoss = Math.min(maxLoss, profit)
+
+              // Update daily data
+              if (!dailyMap.has(dateStr)) {
+                dailyMap.set(dateStr, { profit: 0, bets: 0 })
+              }
+              const daily = dailyMap.get(dateStr)!
+              daily.profit += profit
+              daily.bets += 1
             }
           }
 
           bets.push({
             marketId: betData.marketId,
-            marketTitle: market.title || 'Unknown Market',
+            marketTitle,
             outcome: betData.outcome.yes ? "Yes" : "No",
             amount,
-            timestamp: betData.timestamp.toNumber(),
-            claimed: betData.isClaimed
+            timestamp,
+            claimed: betData.isClaimed,
+            payout
           })
         }
       })
@@ -178,6 +235,41 @@ export default function ProfilePage() {
       setTotalStaked(staked)
       setTotalWon(won)
       setWinRate(userBets.length > 0 ? (winCount / userBets.length) * 100 : 0)
+      setLargestWin(maxWin)
+      setLargestLoss(maxLoss)
+
+      // Calculate ROI
+      const profit = won - staked
+      const calculatedRoi = staked > 0 ? (profit / staked) * 100 : 0
+      setRoi(calculatedRoi)
+
+      // Process daily data for chart
+      const sortedDates = Array.from(dailyMap.keys()).sort()
+      let cumulative = 0
+      const dailyDataArray: DailyData[] = sortedDates.map(date => {
+        const data = dailyMap.get(date)!
+        cumulative += data.profit
+        return {
+          date,
+          profit: data.profit,
+          bets: data.bets,
+          cumulative,
+        }
+      })
+      setDailyData(dailyDataArray)
+
+      // Process market performance
+      const marketPerfArray: MarketPerformance[] = Array.from(marketPerformanceMap.entries())
+        .map(([marketId, data]) => ({
+          marketId,
+          marketTitle: data.title,
+          invested: data.invested,
+          returned: data.returned,
+          roi: data.invested > 0 ? ((data.returned - data.invested) / data.invested) * 100 : 0,
+          bets: data.bets,
+        }))
+        .sort((a, b) => b.roi - a.roi)
+      setMarketPerformance(marketPerfArray)
 
       // Sort bets by timestamp (most recent first)
       bets.sort((a, b) => b.timestamp - a.timestamp)
@@ -460,6 +552,7 @@ export default function ProfilePage() {
           <Tabs defaultValue="activity" className="space-y-6">
             <TabsList className="bg-muted/30">
               <TabsTrigger value="activity">Betting Activity</TabsTrigger>
+              <TabsTrigger value="analytics">Portfolio Analytics</TabsTrigger>
               <TabsTrigger value="wallet">Wallet</TabsTrigger>
               <TabsTrigger value="achievements">Achievements</TabsTrigger>
             </TabsList>
@@ -494,6 +587,171 @@ export default function ProfilePage() {
                           {bet.claimed && (
                             <Badge variant="outline" className="text-xs mt-1">Claimed</Badge>
                           )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="analytics" className="space-y-4">
+              {/* ROI and Performance */}
+              <div className="grid md:grid-cols-3 gap-4">
+                <Card className="glass-strong p-6 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5 pointer-events-none" />
+                  <div className="relative z-10">
+                    <div className="text-sm text-muted-foreground mb-2">Total ROI</div>
+                    <div className={`text-3xl font-bold ${roi >= 0 ? 'text-secondary' : 'text-destructive'}`}>
+                      {roi >= 0 ? '+' : ''}{roi.toFixed(2)}%
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">Return on investment</div>
+                  </div>
+                </Card>
+
+                <Card className="glass p-6">
+                  <div className="text-sm text-muted-foreground mb-2">Total Profit</div>
+                  <div className={`text-3xl font-bold ${(totalWon - totalStaked) >= 0 ? 'text-secondary' : 'text-destructive'}`}>
+                    {(totalWon - totalStaked) >= 0 ? '+' : ''}{(totalWon - totalStaked).toFixed(4)} SOL
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    ≈ ${((totalWon - totalStaked) * 200).toFixed(2)} USD
+                  </div>
+                </Card>
+
+                <Card className="glass p-6">
+                  <div className="text-sm text-muted-foreground mb-2">Win Rate</div>
+                  <div className="text-3xl font-bold">{winRate.toFixed(1)}%</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {Math.round(winRate * totalBets / 100)}W / {totalBets - Math.round(winRate * totalBets / 100)}L
+                  </div>
+                </Card>
+              </div>
+
+              {/* Profit Curve */}
+              <Card className="glass p-6">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5" />
+                  Profit Curve Over Time
+                </h3>
+                {loading ? (
+                  <div className="h-64 flex items-center justify-center text-muted-foreground">
+                    Loading chart data...
+                  </div>
+                ) : dailyData.length === 0 ? (
+                  <div className="h-64 flex items-center justify-center text-muted-foreground">
+                    No resolved bets yet. Start betting to see your profit curve!
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="h-64 relative">
+                      <div className="absolute inset-0 flex items-end gap-1">
+                        {dailyData.map((day, index) => {
+                          const maxProfit = Math.max(...dailyData.map(d => Math.abs(d.cumulative)), 0.01)
+                          const height = (Math.abs(day.cumulative) / maxProfit) * 100
+                          const isPositive = day.cumulative >= 0
+
+                          return (
+                            <div key={index} className="flex-1 flex flex-col items-center gap-1 group">
+                              <div
+                                className={`w-full rounded-t transition-all cursor-pointer ${
+                                  isPositive ? 'bg-secondary/50 hover:bg-secondary' : 'bg-destructive/50 hover:bg-destructive'
+                                }`}
+                                style={{ height: `${Math.max(height, 2)}%` }}
+                                title={`${day.date}: ${day.cumulative >= 0 ? '+' : ''}${day.cumulative.toFixed(4)} SOL (${day.bets} bets, ${day.profit >= 0 ? '+' : ''}${day.profit.toFixed(4)} SOL)`}
+                              />
+                              {index % Math.max(1, Math.floor(dailyData.length / 5)) === 0 && (
+                                <div className="text-[10px] text-muted-foreground whitespace-nowrap mt-1">
+                                  {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                    <div className="text-center text-sm text-muted-foreground">
+                      Cumulative profit: {dailyData[dailyData.length - 1]?.cumulative >= 0 ? '+' : ''}
+                      {dailyData[dailyData.length - 1]?.cumulative.toFixed(4)} SOL • Hover bars for details
+                    </div>
+                  </div>
+                )}
+              </Card>
+
+              {/* Best & Worst Bets */}
+              <div className="grid md:grid-cols-2 gap-4">
+                <Card className="glass p-6">
+                  <h3 className="text-lg font-bold mb-4">Investment Breakdown</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center p-3 rounded-lg bg-muted/20">
+                      <span className="text-sm">Total Invested</span>
+                      <span className="font-bold">{totalStaked.toFixed(4)} SOL</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 rounded-lg bg-muted/20">
+                      <span className="text-sm">Total Returned</span>
+                      <span className="font-bold text-secondary">{totalWon.toFixed(4)} SOL</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 rounded-lg bg-primary/10">
+                      <span className="text-sm font-semibold">Net Profit/Loss</span>
+                      <span className={`font-bold ${(totalWon - totalStaked) >= 0 ? 'text-secondary' : 'text-destructive'}`}>
+                        {(totalWon - totalStaked) >= 0 ? '+' : ''}{(totalWon - totalStaked).toFixed(4)} SOL
+                      </span>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="glass p-6">
+                  <h3 className="text-lg font-bold mb-4">Best & Worst</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center p-3 rounded-lg bg-secondary/10">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4 text-secondary" />
+                        <span className="text-sm">Largest Win</span>
+                      </div>
+                      <span className="font-bold text-secondary">+{largestWin.toFixed(4)} SOL</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 rounded-lg bg-destructive/10">
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-destructive" />
+                        <span className="text-sm">Largest Loss</span>
+                      </div>
+                      <span className="font-bold text-destructive">{largestLoss.toFixed(4)} SOL</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 rounded-lg bg-muted/20">
+                      <span className="text-sm">Average Bet Size</span>
+                      <span className="font-bold">{(totalStaked / Math.max(totalBets, 1)).toFixed(4)} SOL</span>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+
+              {/* Market Performance */}
+              <Card className="glass p-6">
+                <h3 className="text-lg font-bold mb-4">Performance by Market</h3>
+                {marketPerformance.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No resolved markets yet
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {marketPerformance.slice(0, 5).map((market, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-4 rounded-lg bg-muted/20 hover:bg-muted/30 transition-colors"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold truncate">{market.marketTitle}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {market.bets} bets • {market.invested.toFixed(4)} SOL invested
+                          </div>
+                        </div>
+                        <div className="text-right ml-4">
+                          <div className={`text-lg font-bold ${market.roi >= 0 ? 'text-secondary' : 'text-destructive'}`}>
+                            {market.roi >= 0 ? '+' : ''}{market.roi.toFixed(1)}%
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {market.returned.toFixed(4)} SOL returned
+                          </div>
                         </div>
                       </div>
                     ))}
