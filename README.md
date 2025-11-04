@@ -342,14 +342,14 @@ Report security vulnerabilities via GitHub Issues or Twitter DM
 
 ## Roadmap
 
-### Phase 1 (Current)
+### Phase 1 (Completed)
 - ✅ Core betting functionality
 - ✅ Oracle resolution
 - ✅ Dispute mechanism
 - ✅ Admin panel
+- ✅ Multi-outcome markets (2-10 outcomes)
 
 ### Phase 2 (In Progress)
-- 🔄 Multi-outcome markets (beyond Yes/No)
 - 🔄 Liquidity pools (AMM-style)
 - 🔄 Social features (leaderboards, profiles)
 
