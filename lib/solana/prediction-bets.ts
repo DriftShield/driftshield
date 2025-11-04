@@ -27,22 +27,26 @@ export type PredictionBetsIDL = {
   errors: any[];
 };
 
-export enum BetOutcome {
-  Yes = 'Yes',
-  No = 'No',
-}
+// Maximum number of outcomes supported
+export const MAX_OUTCOMES = 10;
 
 export interface MarketAccount {
   authority: PublicKey;
   marketId: string;
   title: string;
   endTimestamp: BN;
-  totalYesBets: BN;
-  totalNoBets: BN;
-  totalYesAmount: BN;
-  totalNoAmount: BN;
+  numOutcomes: number;
+  outcomeLabels: string[];
+  outcomeBetCounts: BN[];
+  outcomeAmounts: BN[];
   isResolved: boolean;
-  winningOutcome: { yes: {} } | { no: {} } | null;
+  winningOutcome: number | null;
+  oracleFeed: PublicKey | null;
+  autoResolutionTime: BN | null;
+  resolutionStatus: any;
+  disputed: boolean;
+  disputeEndTime: BN | null;
+  disputeReason: string;
   bump: number;
 }
 
@@ -50,9 +54,10 @@ export interface BetAccount {
   user: PublicKey;
   market: PublicKey;
   marketId: string;
-  outcome: { yes: {} } | { no: {} };
+  outcomeIndex: number;
   amount: BN;
   timestamp: BN;
+  betIndex: BN;
   isClaimed: boolean;
   bump: number;
 }
@@ -119,13 +124,16 @@ function getProgram(connection: Connection, wallet: WalletContextState) {
 }
 
 /**
- * Initialize a new market on-chain
+ * Initialize a new market on-chain (supports both binary and multi-outcome)
+ * For binary: outcomes = ['Yes', 'No']
+ * For multi: outcomes = ['Option A', 'Option B', 'Option C', ...]
  */
 export async function initializeMarket(
   connection: Connection,
   wallet: WalletContextState,
   marketId: string,
   title: string,
+  outcomes: string[],
   endTimestamp: number,
   oracleFeed?: PublicKey
 ): Promise<string> {
@@ -133,11 +141,15 @@ export async function initializeMarket(
     throw new Error('Wallet not connected');
   }
 
+  if (outcomes.length < 2 || outcomes.length > MAX_OUTCOMES) {
+    throw new Error(`Market must have between 2 and ${MAX_OUTCOMES} outcomes`);
+  }
+
   const program = getProgram(connection, wallet);
   const [marketPDA] = getMarketPDA(marketId);
 
   const tx = await program.methods
-    .initializeMarket(marketId, title, new BN(endTimestamp), oracleFeed || null)
+    .initializeMarket(marketId, title, outcomes, new BN(endTimestamp), oracleFeed || null)
     .accounts({
       market: marketPDA,
       authority: wallet.publicKey,
@@ -150,15 +162,18 @@ export async function initializeMarket(
 
 /**
  * Place a bet on a market (auto-initializes market if needed)
+ * For binary markets: outcomeIndex = 0 (Yes) or 1 (No)
+ * For multi-outcome: outcomeIndex = 0..N
  */
 export async function placeBet(
   connection: Connection,
   wallet: WalletContextState,
   marketId: string,
-  outcome: BetOutcome,
+  outcomeIndex: number,
   amountSOL: number,
   marketEndDate?: string,
-  marketTitle?: string
+  marketTitle?: string,
+  outcomes?: string[]
 ): Promise<string> {
   if (!wallet.publicKey || !wallet.signTransaction) {
     throw new Error('Wallet not connected');
@@ -173,6 +188,11 @@ export async function placeBet(
   try {
     marketData = await (program.account as any).market.fetch(marketPDA);
 
+    // Validate outcome index
+    if (outcomeIndex >= marketData.numOutcomes) {
+      throw new Error(`Invalid outcome index. Market has ${marketData.numOutcomes} outcomes.`);
+    }
+
     // Check if market has expired on-chain
     const currentTime = Math.floor(Date.now() / 1000);
     const endTimestamp = marketData.endTimestamp.toNumber();
@@ -182,7 +202,7 @@ export async function placeBet(
     }
   } catch (error: any) {
     // If error message contains our expiration message, re-throw it
-    if (error.message?.includes('market closed')) {
+    if (error.message?.includes('market closed') || error.message?.includes('Invalid outcome')) {
       throw error;
     }
 
@@ -199,6 +219,7 @@ export async function placeBet(
     }
 
     const title = marketTitle || `Market ${marketId}`;
+    const marketOutcomes = outcomes || ['Yes', 'No']; // Default to binary
 
     try {
       await initializeMarket(
@@ -206,6 +227,7 @@ export async function placeBet(
         wallet,
         marketId,
         title.slice(0, 200), // Limit to 200 chars
+        marketOutcomes,
         endTimestamp,
         undefined // No oracle feed for now
       );
@@ -221,17 +243,17 @@ export async function placeBet(
 
   const amount = new BN(amountSOL * LAMPORTS_PER_SOL);
 
-  // Get bet index from market data
-  const betIndex = (marketData.totalYesBets as any).add(marketData.totalNoBets);
+  // Calculate bet index from market data (sum of all outcome bet counts)
+  let betIndex = 0;
+  for (let i = 0; i < marketData.numOutcomes; i++) {
+    betIndex += marketData.outcomeBetCounts[i].toNumber();
+  }
 
-  const [betPDA] = getBetPDA(marketPDA, wallet.publicKey, betIndex.toNumber());
-
-  // Convert outcome enum
-  const outcomeEnum = outcome === BetOutcome.Yes ? { yes: {} } : { no: {} };
+  const [betPDA] = getBetPDA(marketPDA, wallet.publicKey, betIndex);
 
   try {
     const tx = await program.methods
-      .placeBet(marketId, outcomeEnum, amount)
+      .placeBet(marketId, outcomeIndex, amount, new BN(betIndex))
       .accounts({
         market: marketPDA,
         bet: betPDA,
@@ -291,9 +313,10 @@ export async function getUserBetsForMarket(
       user: new PublicKey(data.slice(8, 40)),
       market: new PublicKey(data.slice(40, 72)),
       marketId: '', // Would parse string
-      outcome: { yes: {} }, // Would parse enum
+      outcomeIndex: 0, // Would parse index
       amount: new BN(data.slice(0, 8), 'le'),
       timestamp: new BN(0),
+      betIndex: new BN(0),
       isClaimed: false,
       bump: 0,
     };
@@ -328,12 +351,14 @@ export async function getAllUserBets(
 
 /**
  * Resolve a market (admin only)
+ * For binary: winningOutcomeIndex = 0 (Yes) or 1 (No)
+ * For multi: winningOutcomeIndex = 0..N
  */
 export async function resolveMarket(
   connection: Connection,
   wallet: WalletContextState,
   marketId: string,
-  winningOutcome: BetOutcome
+  winningOutcomeIndex: number
 ): Promise<string> {
   if (!wallet.publicKey || !wallet.signTransaction) {
     throw new Error('Wallet not connected');
@@ -341,10 +366,9 @@ export async function resolveMarket(
 
   const program = getProgram(connection, wallet);
   const [marketPDA] = getMarketPDA(marketId);
-  const outcomeEnum = winningOutcome === BetOutcome.Yes ? { yes: {} } : { no: {} };
 
   const tx = await program.methods
-    .resolveMarket(outcomeEnum)
+    .resolveMarket(winningOutcomeIndex)
     .accounts({
       market: marketPDA,
       authority: wallet.publicKey,

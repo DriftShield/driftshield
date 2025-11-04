@@ -58,8 +58,23 @@ export default function AnalyticsPage() {
       const provider = new AnchorProvider(connection, dummyWallet as any, { commitment: 'confirmed' })
       const program = new Program(IDL as any, provider)
 
-      // Fetch all on-chain markets
-      const onChainMarkets = await program.account.market.all()
+      // Fetch all on-chain markets using getProgramAccounts
+      const { BorshAccountsCoder } = await import('@coral-xyz/anchor')
+      const coder = new BorshAccountsCoder(IDL as any)
+      const programAccounts = await connection.getProgramAccounts(PROGRAM_ID)
+
+      // Filter and decode only Market accounts
+      const onChainMarkets: any[] = []
+      for (const { pubkey, account } of programAccounts) {
+        try {
+          const marketData = coder.decode('Market', account.data)
+          onChainMarkets.push({ pubkey, account: marketData })
+        } catch {
+          // Not a Market account, skip
+          continue
+        }
+      }
+
       setTotalOnChainMarkets(onChainMarkets.length)
 
       // Create a map of on-chain markets by their Polymarket ID
@@ -68,29 +83,37 @@ export default function AnalyticsPage() {
 
       for (const account of onChainMarkets) {
         const marketData = account.account as any
-        const marketId = marketData.marketId
+        const marketId = marketData.market_id
 
         // Extract Polymarket ID from market ID (format: pm-{polymarketId}-{index})
         const polymarketIdMatch = marketId.match(/^pm-(\d+)/)
         if (polymarketIdMatch) {
           const polymarketId = polymarketIdMatch[1]
 
-          // Calculate total volume from bets
-          const totalYes = marketData.totalYesAmount?.toNumber() || 0
-          const totalNo = marketData.totalNoAmount?.toNumber() || 0
-          const totalVolume = (totalYes + totalNo) / 1e9 // Convert lamports to SOL
+          // Calculate total volume from outcome amounts (unified multi-outcome structure)
+          const numOutcomes = marketData.num_outcomes
+          const outcomeAmounts = marketData.outcome_amounts || []
+
+          let totalVolume = 0
+          for (let i = 0; i < numOutcomes; i++) {
+            const amount = outcomeAmounts[i]?.toNumber() || 0
+            totalVolume += amount / 1e9 // Convert lamports to SOL
+          }
 
           totalDriftVolume += totalVolume
 
-          // Calculate DriftShield price (probability based on betting pool)
-          const totalPool = totalYes + totalNo
-          const driftPrice = totalPool > 0 ? totalYes / totalPool : 0.5
+          // Calculate DriftShield price for binary markets (first outcome is Yes)
+          let driftPrice = 0.5
+          if (numOutcomes === 2 && totalVolume > 0) {
+            const yesAmount = outcomeAmounts[0]?.toNumber() || 0
+            driftPrice = yesAmount / (totalVolume * 1e9)
+          }
 
           driftMarketMap.set(polymarketId, {
             price: driftPrice,
             volume: totalVolume,
-            totalYesBets: marketData.totalYesBets?.toNumber() || 0,
-            totalNoBets: marketData.totalNoBets?.toNumber() || 0,
+            totalYesBets: 0, // Not tracked separately in unified structure
+            totalNoBets: 0,
           })
         }
       }

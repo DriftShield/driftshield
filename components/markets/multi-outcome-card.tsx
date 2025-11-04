@@ -69,7 +69,7 @@ export function MultiOutcomeCard({ market }: MultiOutcomeCardProps) {
         {/* Outcomes Grid */}
         <div className="space-y-2">
           {displayOutcomes.map((outcome, index) => (
-            <OutcomeOption key={outcome.id} outcome={outcome} rank={index + 1} />
+            <OutcomeOption key={index} outcome={outcome} rank={index + 1} />
           ))}
           {remainingCount > 0 && (
             <div className="text-xs text-muted-foreground text-center py-2">
@@ -80,7 +80,7 @@ export function MultiOutcomeCard({ market }: MultiOutcomeCardProps) {
 
         {/* View Details */}
         <Button variant="outline" className="w-full bg-transparent" asChild>
-          <Link href={`/dashboard/markets/multi/${market.id}`}>
+          <Link href={`/dashboard/markets/${market.id}`}>
             View All Outcomes & Place Bet
           </Link>
         </Button>

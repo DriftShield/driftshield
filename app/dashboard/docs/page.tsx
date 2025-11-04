@@ -474,22 +474,22 @@ export default function DocsPage() {
                     {[
                       {
                         name: "placeBet",
-                        description: "Place a YES or NO bet on a market",
+                        description: "Place a bet on a market outcome",
                         params: [
                           "connection: Connection",
                           "wallet: WalletContextState",
                           "marketId: string",
-                          "outcome: BetOutcome",
+                          "outcomeIndex: number (0=Yes, 1=No for binary)",
                           "amountSOL: number"
                         ],
                         returns: "Promise<string>",
-                        example: `import { placeBet, BetOutcome } from '@/lib/solana/prediction-bets'
+                        example: `import { placeBet } from '@/lib/solana/prediction-bets'
 
 const tx = await placeBet(
   connection,
   wallet,
   "pm-123456-0",
-  BetOutcome.Yes,
+  0, // 0 for Yes, 1 for No
   0.1 // 0.1 SOL
 )`
                       },

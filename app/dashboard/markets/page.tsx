@@ -43,19 +43,9 @@ export default function MarketsPage() {
     try {
       setLoading(true);
 
-      // Load both on-chain and Polymarket markets
-      const [onChainMarkets, polymarketMarkets] = await Promise.all([
-        fetchOnChainMarkets(),
-        fetchPolymarketEvents({ limit: 20, active: true }),
-      ]);
-
-      // Combine all markets
-      const combined: Market[] = [
-        ...onChainMarkets,
-        ...polymarketMarkets,
-      ];
-
-      setAllMarkets(combined);
+      // Load on-chain markets only
+      const onChainMarkets = await fetchOnChainMarkets();
+      setAllMarkets(onChainMarkets);
     } catch (error) {
       console.error('Error loading markets:', error);
     } finally {
@@ -63,7 +53,7 @@ export default function MarketsPage() {
     }
   };
 
-  const fetchOnChainMarkets = async (): Promise<BinaryMarket[]> => {
+  const fetchOnChainMarkets = async (): Promise<Market[]> => {
     try {
       const dummyWallet = {
         publicKey: PROGRAM_ID,
@@ -73,34 +63,94 @@ export default function MarketsPage() {
 
       const provider = new AnchorProvider(connection, dummyWallet as any, { commitment: 'confirmed' });
       const program = new Program(IDL as any, provider);
-      const accounts = await program.account.market.all();
 
-      const onChainMarkets: BinaryMarket[] = [];
+      const onChainMarkets: Market[] = [];
 
-      for (const account of accounts) {
-        const marketData = account.account as any;
-        const endTimestamp = marketData.endTimestamp.toNumber();
-        const endDate = new Date(endTimestamp * 1000);
-
-        const totalYesAmount = marketData.totalYesAmount.toNumber() / 1e9;
-        const totalNoAmount = marketData.totalNoAmount.toNumber() / 1e9;
-        const totalVolume = totalYesAmount + totalNoAmount;
-        const yesProbability = totalVolume > 0 ? totalYesAmount / totalVolume : 0.5;
-
-        onChainMarkets.push({
-          id: marketData.marketId,
-          question: marketData.title,
-          category: 'Other',
-          outcomes: ['Yes', 'No'],
-          volume: totalVolume,
-          liquidity: totalVolume,
-          probability: yesProbability,
-          endDate: endDate.toISOString(),
-          active: endDate.getTime() > Date.now(),
-          isMultiOutcome: false,
-        });
+      // Get all program accounts
+      let programAccounts;
+      try {
+        programAccounts = await connection.getProgramAccounts(PROGRAM_ID);
+        console.log(`Found ${programAccounts.length} program accounts`);
+      } catch (err) {
+        console.error('Error fetching program accounts:', err);
+        return [];
       }
 
+      // Use BorshAccountsCoder directly for more reliable decoding
+      const { BorshAccountsCoder } = await import('@coral-xyz/anchor');
+      const coder = new BorshAccountsCoder(IDL as any);
+
+      // Try to deserialize each account
+      for (const { pubkey, account } of programAccounts) {
+        try {
+          // Try to decode as Market account using BorshAccountsCoder directly
+          const marketData = coder.decode('Market', account.data) as any;
+
+          // Borsh uses snake_case field names
+          console.log('Successfully decoded market:', marketData.market_id);
+
+          const endTimestamp = marketData.end_timestamp.toNumber();
+          const endDate = new Date(endTimestamp * 1000);
+
+          const numOutcomes = marketData.num_outcomes;
+          const outcomes = marketData.outcome_labels.slice(0, numOutcomes);
+
+          // Calculate total volume and probabilities
+          let totalVolume = 0;
+          for (let i = 0; i < numOutcomes; i++) {
+            totalVolume += marketData.outcome_amounts[i].toNumber() / 1e9;
+          }
+
+          const isBinary = numOutcomes === 2;
+
+          if (isBinary) {
+            const yesAmount = marketData.outcome_amounts[0].toNumber() / 1e9;
+            const noAmount = marketData.outcome_amounts[1].toNumber() / 1e9;
+            const probability = totalVolume > 0 ? yesAmount / totalVolume : 0.5;
+
+            onChainMarkets.push({
+              id: marketData.market_id,
+              question: marketData.title,
+              category: 'Other',
+              outcomes,
+              volume: totalVolume,
+              liquidity: totalVolume,
+              probability,
+              endDate: endDate.toISOString(),
+              active: endDate.getTime() > Date.now(),
+              isMultiOutcome: false,
+            } as BinaryMarket);
+          } else {
+            // Multi-outcome market
+            const outcomeProbabilities: number[] = [];
+            for (let i = 0; i < numOutcomes; i++) {
+              const amount = marketData.outcome_amounts[i].toNumber() / 1e9;
+              outcomeProbabilities.push(totalVolume > 0 ? amount / totalVolume : 1 / numOutcomes);
+            }
+
+            onChainMarkets.push({
+              id: marketData.market_id,
+              question: marketData.title,
+              category: 'Other',
+              outcomes,
+              outcomeProbabilities,
+              volume: totalVolume,
+              liquidity: totalVolume,
+              endDate: endDate.toISOString(),
+              active: endDate.getTime() > Date.now(),
+              isMultiOutcome: true,
+            } as MultiOutcomeMarket);
+          }
+        } catch (decodeError: any) {
+          // Skip accounts that can't be decoded as Market (could be Bet or Vault accounts)
+          if (decodeError?.message && !decodeError.message.includes('Invalid account discriminator')) {
+            console.log('Decode error:', decodeError.message.substring(0, 100));
+          }
+          continue;
+        }
+      }
+
+      console.log(`Successfully parsed ${onChainMarkets.length} markets`);
       return onChainMarkets;
     } catch (error) {
       console.error('Error fetching on-chain markets:', error);

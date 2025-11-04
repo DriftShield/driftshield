@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DashboardNav } from '@/components/dashboard-nav';
-import { getMarketPDA, getBetPDA, getVaultPDA, PROGRAM_ID, resolveMarket, BetOutcome } from '@/lib/solana/prediction-bets';
+import { getMarketPDA, getBetPDA, getVaultPDA, PROGRAM_ID, resolveMarket } from '@/lib/solana/prediction-bets';
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
 import IDL from '@/lib/solana/prediction_bets_idl.json';
 import { LAMPORTS_PER_SOL, SystemProgram } from '@solana/web3.js';
@@ -94,7 +94,7 @@ export default function TestPayoutPage() {
         connection,
         { publicKey, signTransaction, connected } as any,
         marketId,
-        outcome === 'YES' ? BetOutcome.Yes : BetOutcome.No
+        outcome === 'YES' ? 0 : 1
       );
 
       alert(`Resolved! TX: ${signature}`);

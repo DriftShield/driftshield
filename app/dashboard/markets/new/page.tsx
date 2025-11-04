@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Info, Loader2, AlertTriangle } from "lucide-react"
+import { ArrowLeft, Info, Loader2, AlertTriangle, X } from "lucide-react"
 import Link from "next/link"
 import { useWallet, useConnection } from "@solana/wallet-adapter-react"
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui"
@@ -38,6 +38,20 @@ export default function NewMarketPage() {
   const [customEndDate, setCustomEndDate] = useState("")
   const [creating, setCreating] = useState(false)
 
+  // Multi-outcome support
+  const [marketType, setMarketType] = useState<'binary' | 'multi'>('binary')
+  const [outcomes, setOutcomes] = useState<string[]>(['Yes', 'No'])
+
+  // Update outcomes when market type changes
+  useEffect(() => {
+    if (marketType === 'binary') {
+      setOutcomes(['Yes', 'No'])
+    } else {
+      // Start with 3 empty outcomes for multi-outcome
+      setOutcomes(['', '', ''])
+    }
+  }, [marketType])
+
   const handleCreateMarket = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -48,6 +62,17 @@ export default function NewMarketPage() {
 
     if (!question.trim()) {
       alert('Please enter a market question')
+      return
+    }
+
+    // Validate outcomes
+    const validOutcomes = outcomes.filter(o => o.trim().length > 0)
+    if (validOutcomes.length < 2) {
+      alert('Please provide at least 2 outcomes')
+      return
+    }
+    if (validOutcomes.length > 10) {
+      alert('Maximum 10 outcomes allowed')
       return
     }
 
@@ -89,6 +114,7 @@ export default function NewMarketPage() {
         { publicKey, signTransaction, connected } as any,
         marketId,
         question.slice(0, 200), // Limit title to 200 chars
+        validOutcomes, // Pass outcomes array
         endTimestamp
       )
 
@@ -184,7 +210,7 @@ export default function NewMarketPage() {
                 <div className="text-sm space-y-1">
                   <p className="font-semibold">How Prediction Markets Work</p>
                   <p className="text-muted-foreground">
-                    Create a yes/no question about any future event. Users bet with SOL using X402 payments,
+                    Create a binary (Yes/No) or multi-outcome market about any future event. Users bet with SOL using X402 payments,
                     and winners get paid when the market resolves. Markets are stored on Solana blockchain.
                   </p>
                 </div>
@@ -207,9 +233,78 @@ export default function NewMarketPage() {
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Must be a yes/no question that can be objectively resolved
+                  {marketType === 'binary'
+                    ? 'Must be a yes/no question that can be objectively resolved'
+                    : 'Must be a question with multiple possible outcomes'}
                 </p>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="marketType">Market Type *</Label>
+                <select
+                  id="marketType"
+                  value={marketType}
+                  onChange={(e) => setMarketType(e.target.value as 'binary' | 'multi')}
+                  className="w-full h-10 px-3 rounded-lg border border-input bg-background/50 text-sm"
+                >
+                  <option value="binary">Binary (Yes/No)</option>
+                  <option value="multi">Multi-Outcome (3-10 choices)</option>
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  {marketType === 'binary'
+                    ? 'Two outcomes: Yes and No'
+                    : 'Multiple possible outcomes for the market'}
+                </p>
+              </div>
+
+              {marketType === 'multi' && (
+                <div className="space-y-2">
+                  <Label>Outcomes * (2-10 required)</Label>
+                  <div className="space-y-2">
+                    {outcomes.map((outcome, index) => (
+                      <div key={index} className="flex gap-2">
+                        <Input
+                          value={outcome}
+                          onChange={(e) => {
+                            const newOutcomes = [...outcomes]
+                            newOutcomes[index] = e.target.value
+                            setOutcomes(newOutcomes)
+                          }}
+                          placeholder={`Outcome ${index + 1}`}
+                          className="bg-background/50"
+                        />
+                        {outcomes.length > 2 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => {
+                              setOutcomes(outcomes.filter((_, i) => i !== index))
+                            }}
+                            className="flex-shrink-0"
+                          >
+                            ✕
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {outcomes.length < 10 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setOutcomes([...outcomes, ''])}
+                      className="w-full bg-transparent"
+                    >
+                      + Add Outcome
+                    </Button>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Add between 2 and 10 possible outcomes for this market
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="description">Description / Resolution Criteria</Label>

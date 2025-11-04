@@ -6,7 +6,11 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "eslint .",
-    "start": "next start"
+    "start": "next start",
+    "deploy-markets": "ts-node --project tsconfig.scripts.json scripts/deploy-polymarket-markets.ts",
+    "deploy-markets:dry-run": "ts-node --project tsconfig.scripts.json scripts/deploy-polymarket-markets.ts --dry-run",
+    "deploy-samples": "ts-node --project tsconfig.scripts.json scripts/deploy-sample-markets.ts",
+    "deploy-200": "ts-node --project tsconfig.scripts.json scripts/deploy-200-markets.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.32.1",

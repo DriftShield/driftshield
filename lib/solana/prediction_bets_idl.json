@@ -8,74 +8,6 @@
   },
   "instructions": [
     {
-      "name": "admin_finalize_resolution",
-      "docs": [
-        "Admin manually finalizes a disputed market"
-      ],
-      "discriminator": [
-        157,
-        239,
-        197,
-        67,
-        35,
-        23,
-        138,
-        144
-      ],
-      "accounts": [
-        {
-          "name": "market",
-          "writable": true
-        },
-        {
-          "name": "authority",
-          "signer": true
-        }
-      ],
-      "args": [
-        {
-          "name": "final_outcome",
-          "type": {
-            "defined": {
-              "name": "BetOutcome"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "auto_resolve_market",
-      "docs": [
-        "Auto-resolve market using oracle data (anyone can call after auto_resolution_time)"
-      ],
-      "discriminator": [
-        86,
-        100,
-        187,
-        222,
-        143,
-        231,
-        218,
-        185
-      ],
-      "accounts": [
-        {
-          "name": "market",
-          "writable": true
-        }
-      ],
-      "args": [
-        {
-          "name": "winning_outcome",
-          "type": {
-            "defined": {
-              "name": "BetOutcome"
-            }
-          }
-        }
-      ]
-    },
-    {
       "name": "claim_payout",
       "docs": [
         "Claim payout for a winning bet"
@@ -182,38 +114,6 @@
       "args": []
     },
     {
-      "name": "dispute_resolution",
-      "docs": [
-        "Dispute an oracle resolution (within 48h dispute period)"
-      ],
-      "discriminator": [
-        89,
-        169,
-        106,
-        71,
-        131,
-        77,
-        122,
-        232
-      ],
-      "accounts": [
-        {
-          "name": "market",
-          "writable": true
-        },
-        {
-          "name": "disputer",
-          "signer": true
-        }
-      ],
-      "args": [
-        {
-          "name": "reason",
-          "type": "string"
-        }
-      ]
-    },
-    {
       "name": "emergency_withdraw",
       "docs": [
         "Emergency withdrawal - only for authority, only after 30 days"
@@ -273,32 +173,11 @@
       ]
     },
     {
-      "name": "finalize_oracle_resolution",
-      "docs": [
-        "Finalize oracle resolution after dispute period expires (no disputes)"
-      ],
-      "discriminator": [
-        141,
-        212,
-        13,
-        164,
-        37,
-        26,
-        125,
-        254
-      ],
-      "accounts": [
-        {
-          "name": "market",
-          "writable": true
-        }
-      ],
-      "args": []
-    },
-    {
       "name": "initialize_market",
       "docs": [
-        "Initialize a new market for betting (with optional oracle)"
+        "Initialize a new market (supports both binary and multi-outcome)",
+        "For binary: outcomes = [\"Yes\", \"No\"]",
+        "For multi: outcomes = [\"Option A\", \"Option B\", \"Option C\", ...]"
       ],
       "discriminator": [
         35,
@@ -354,6 +233,12 @@
           "type": "string"
         },
         {
+          "name": "outcomes",
+          "type": {
+            "vec": "string"
+          }
+        },
+        {
           "name": "end_timestamp",
           "type": "i64"
         },
@@ -368,7 +253,9 @@
     {
       "name": "place_bet",
       "docs": [
-        "Place a bet on a market"
+        "Place a bet on any outcome",
+        "For binary: outcome_index = 0 (Yes) or 1 (No)",
+        "For multi: outcome_index = 0..N"
       ],
       "discriminator": [
         222,
@@ -426,9 +313,8 @@
                 "path": "user"
               },
               {
-                "kind": "account",
-                "path": "market.total_yes_bets.checked_add(market.total_no_bets)",
-                "account": "Market"
+                "kind": "arg",
+                "path": "bet_index"
               }
             ]
           }
@@ -471,15 +357,15 @@
           "type": "string"
         },
         {
-          "name": "outcome",
-          "type": {
-            "defined": {
-              "name": "BetOutcome"
-            }
-          }
+          "name": "outcome_index",
+          "type": "u8"
         },
         {
           "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "bet_index",
           "type": "u64"
         }
       ]
@@ -511,12 +397,8 @@
       ],
       "args": [
         {
-          "name": "winning_outcome",
-          "type": {
-            "defined": {
-              "name": "BetOutcome"
-            }
-          }
+          "name": "winning_outcome_index",
+          "type": "u8"
         }
       ]
     }
@@ -592,58 +474,31 @@
     },
     {
       "code": 6008,
-      "name": "NoOracleFeed",
-      "msg": "Market does not have an oracle feed configured"
+      "name": "InsufficientOutcomes",
+      "msg": "Market needs at least 2 outcomes"
     },
     {
       "code": 6009,
-      "name": "AutoResolutionTooEarly",
-      "msg": "Auto-resolution time has not passed yet"
+      "name": "TooManyOutcomes",
+      "msg": "Market cannot have more than 10 outcomes"
     },
     {
       "code": 6010,
-      "name": "InvalidOracleFeed",
-      "msg": "Invalid oracle feed data"
+      "name": "InvalidOutcome",
+      "msg": "Invalid outcome index"
     },
     {
       "code": 6011,
-      "name": "OracleNoData",
-      "msg": "Oracle has no data available"
-    },
-    {
-      "code": 6012,
-      "name": "NotOracleResolved",
-      "msg": "Market was not oracle-resolved"
-    },
-    {
-      "code": 6013,
-      "name": "NoDisputePeriod",
-      "msg": "No dispute period configured"
-    },
-    {
-      "code": 6014,
-      "name": "DisputePeriodExpired",
-      "msg": "Dispute period has expired"
-    },
-    {
-      "code": 6015,
-      "name": "NotDisputed",
-      "msg": "Market has not been disputed"
-    },
-    {
-      "code": 6016,
-      "name": "AlreadyDisputed",
-      "msg": "Market has already been disputed"
-    },
-    {
-      "code": 6017,
-      "name": "DisputePeriodNotExpired",
-      "msg": "Dispute period has not expired yet"
+      "name": "InvalidBetIndex",
+      "msg": "Invalid bet index"
     }
   ],
   "types": [
     {
       "name": "Bet",
+      "docs": [
+        "Unified Bet account for both binary and multi-outcome"
+      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -660,12 +515,8 @@
             "type": "string"
           },
           {
-            "name": "outcome",
-            "type": {
-              "defined": {
-                "name": "BetOutcome"
-              }
-            }
+            "name": "outcome_index",
+            "type": "u8"
           },
           {
             "name": "amount",
@@ -691,21 +542,10 @@
       }
     },
     {
-      "name": "BetOutcome",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Yes"
-          },
-          {
-            "name": "No"
-          }
-        ]
-      }
-    },
-    {
       "name": "Market",
+      "docs": [
+        "Unified Market account supporting both binary and multi-outcome"
+      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -726,20 +566,35 @@
             "type": "i64"
           },
           {
-            "name": "total_yes_bets",
-            "type": "u64"
+            "name": "num_outcomes",
+            "type": "u8"
           },
           {
-            "name": "total_no_bets",
-            "type": "u64"
+            "name": "outcome_labels",
+            "type": {
+              "array": [
+                "string",
+                10
+              ]
+            }
           },
           {
-            "name": "total_yes_amount",
-            "type": "u64"
+            "name": "outcome_bet_counts",
+            "type": {
+              "array": [
+                "u64",
+                10
+              ]
+            }
           },
           {
-            "name": "total_no_amount",
-            "type": "u64"
+            "name": "outcome_amounts",
+            "type": {
+              "array": [
+                "u64",
+                10
+              ]
+            }
           },
           {
             "name": "is_resolved",
@@ -748,11 +603,7 @@
           {
             "name": "winning_outcome",
             "type": {
-              "option": {
-                "defined": {
-                  "name": "BetOutcome"
-                }
-              }
+              "option": "u8"
             }
           },
           {

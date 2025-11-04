@@ -11,7 +11,7 @@ import { useX402Bet } from "@/lib/hooks/useX402Bet";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
-import { placeBet as placeBetOnChain, BetOutcome, getMarketPDA, PROGRAM_ID, claimPayout, resolveMarket, getVaultPDA, getBetPDA } from "@/lib/solana/prediction-bets";
+import { placeBet as placeBetOnChain, getMarketPDA, PROGRAM_ID, claimPayout, resolveMarket, getVaultPDA, getBetPDA } from "@/lib/solana/prediction-bets";
 import { parseResolutionStatus } from "@/lib/solana/oracle-resolution";
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
 import { SystemProgram, PublicKey as SolanaPublicKey } from '@solana/web3.js';
@@ -113,34 +113,48 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
       // Fetch from on-chain
       const [marketPDA] = getMarketPDA(marketId);
-      const dummyWallet = {
-        publicKey: PROGRAM_ID,
-        signTransaction: async (tx: any) => tx,
-        signAllTransactions: async (txs: any[]) => txs,
-      };
-
-      const provider = new AnchorProvider(connection, dummyWallet as any, { commitment: 'confirmed' });
-      const program = new Program(IDL as any, provider);
 
       try {
-        const marketData = await (program.account as any).market.fetch(marketPDA);
+        // Use BorshAccountsCoder directly for reliable decoding
+        const { BorshAccountsCoder } = await import('@coral-xyz/anchor');
+        const coder = new BorshAccountsCoder(IDL as any);
 
-        const endTimestamp = marketData.endTimestamp.toNumber();
+        const accountInfo = await connection.getAccountInfo(marketPDA);
+        if (!accountInfo) {
+          setError('Market not found on-chain');
+          return;
+        }
+
+        const marketData = coder.decode('Market', accountInfo.data) as any;
+
+        // Access fields using snake_case
+        const endTimestamp = marketData.end_timestamp.toNumber();
         const endDate = new Date(endTimestamp * 1000);
+        const numOutcomes = marketData.num_outcomes;
+        const outcomeLabels = marketData.outcome_labels.slice(0, numOutcomes);
+        const outcomeAmounts = marketData.outcome_amounts.slice(0, numOutcomes);
 
         // Calculate total volume and probabilities
-        const totalYesAmount = marketData.totalYesAmount.toNumber() / 1e9;
-        const totalNoAmount = marketData.totalNoAmount.toNumber() / 1e9;
-        const totalVolume = totalYesAmount + totalNoAmount;
-        const yesProbability = totalVolume > 0 ? totalYesAmount / totalVolume : 0.5;
+        let totalVolume = 0;
+        const probabilities: number[] = [];
+
+        for (let i = 0; i < numOutcomes; i++) {
+          totalVolume += outcomeAmounts[i].toNumber() / 1e9;
+        }
+
+        for (let i = 0; i < numOutcomes; i++) {
+          const amount = outcomeAmounts[i].toNumber() / 1e9;
+          const prob = totalVolume > 0 ? amount / totalVolume : 1 / numOutcomes;
+          probabilities.push(prob);
+        }
 
         setMarket({
           id: marketId,
           question: marketData.title,
           description: 'On-chain prediction market powered by Solana',
           category: 'Other',
-          outcomes: ['Yes', 'No'],
-          outcomePrices: [yesProbability.toFixed(2), (1 - yesProbability).toFixed(2)],
+          outcomes: outcomeLabels,
+          outcomePrices: probabilities.map(p => p.toFixed(2)),
           volume: totalVolume.toFixed(3),
           liquidity: totalVolume.toFixed(3),
           endDate: endDate.toISOString(),
@@ -148,9 +162,11 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
           closed: endDate.getTime() <= Date.now(),
         });
       } catch (err) {
+        console.error('Error fetching market:', err);
         setError('Market not found on-chain');
       }
     } catch (err) {
+      console.error('Error in fetchMarket:', err);
       setError('Failed to load market');
     } finally {
       setLoading(false);
@@ -161,37 +177,39 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     try {
       const [marketPDA] = getMarketPDA(marketId);
 
-      // Create a dummy wallet for reading (no signing needed)
-      const dummyWallet = {
-        publicKey: PROGRAM_ID, // Use any public key
-        signTransaction: async (tx: any) => tx,
-        signAllTransactions: async (txs: any[]) => txs,
-      };
+      // Use BorshAccountsCoder directly for reliable decoding
+      const { BorshAccountsCoder } = await import('@coral-xyz/anchor');
+      const coder = new BorshAccountsCoder(IDL as any);
 
-      const provider = new AnchorProvider(connection, dummyWallet as any, { commitment: 'confirmed' });
-      const program = new Program(IDL as any, provider);
+      const accountInfo = await connection.getAccountInfo(marketPDA);
+      if (!accountInfo) {
+        setOnChainEndDate(null);
+        return;
+      }
 
-      // Try to fetch on-chain market data
-      const marketData = await (program.account as any).market.fetch(marketPDA);
+      const marketData = coder.decode('Market', accountInfo.data) as any;
 
-      if (marketData && marketData.endTimestamp) {
-        const endTimestamp = marketData.endTimestamp.toNumber();
+      if (marketData && marketData.end_timestamp) {
+        // Access fields using snake_case
+        const endTimestamp = marketData.end_timestamp.toNumber();
         setOnChainEndDate(new Date(endTimestamp * 1000));
 
         // Set resolution status
-        setIsResolved(marketData.isResolved);
-        if (marketData.winningOutcome) {
-          setWinningOutcome(marketData.winningOutcome.yes ? 'YES' : 'NO');
+        setIsResolved(marketData.is_resolved);
+        if (marketData.winning_outcome !== null && marketData.winning_outcome !== undefined) {
+          const numOutcomes = marketData.num_outcomes;
+          const outcomeLabels = marketData.outcome_labels.slice(0, numOutcomes);
+          setWinningOutcome(outcomeLabels[marketData.winning_outcome] || 'Unknown');
         }
 
         // Oracle resolution data
-        if (marketData.resolutionStatus) {
-          setResolutionStatus(parseResolutionStatus(marketData.resolutionStatus));
+        if (marketData.resolution_status) {
+          setResolutionStatus(parseResolutionStatus(marketData.resolution_status));
         }
         setDisputed(marketData.disputed || false);
-        setDisputeReason(marketData.disputeReason || "");
-        if (marketData.disputeEndTime) {
-          setDisputeEndTime(marketData.disputeEndTime.toNumber());
+        setDisputeReason(marketData.dispute_reason || "");
+        if (marketData.dispute_end_time) {
+          setDisputeEndTime(marketData.dispute_end_time.toNumber());
         }
 
         // Check if connected wallet is the market authority
@@ -201,6 +219,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
         }
       }
     } catch (error) {
+      console.error('Error fetching on-chain market data:', error);
       setOnChainEndDate(null);
     }
   };
@@ -211,50 +230,72 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     try {
       // Fetch bets from blockchain
       const [marketPDA] = getMarketPDA(marketId);
-      const dummyWallet = {
-        publicKey: PROGRAM_ID,
-        signTransaction: async (tx: any) => tx,
-        signAllTransactions: async (txs: any[]) => txs,
-      };
-      const provider = new AnchorProvider(connection, dummyWallet as any, { commitment: 'confirmed' });
-      const program = new Program(IDL as any, provider);
 
-      // Fetch all bet accounts for this user on this market
-      const betAccounts = await program.account.bet.all([
-        {
-          memcmp: {
-            offset: 8, // After discriminator
-            bytes: publicKey.toBase58(),
+      // Get all program accounts and filter manually
+      const programAccounts = await connection.getProgramAccounts(PROGRAM_ID, {
+        filters: [
+          {
+            memcmp: {
+              offset: 8, // After discriminator
+              bytes: publicKey.toBase58(),
+            }
           }
-        }
-      ]);
+        ]
+      });
+
+      const { BorshAccountsCoder } = await import('@coral-xyz/anchor');
+      const coder = new BorshAccountsCoder(IDL as any);
 
       // Filter bets for this specific market
       const marketBets: Bet[] = [];
 
-      for (const bet of betAccounts) {
-        const betAccount = bet.account as any;
-        if (betAccount.market.toBase58() !== marketPDA.toBase58()) continue;
+      for (const { pubkey, account } of programAccounts) {
+        try {
+          const betAccount = coder.decode('Bet', account.data) as any;
 
-        // Get bet_index from the on-chain account
-        const betIndex = betAccount.betIndex ? betAccount.betIndex.toNumber() : undefined;
-        const onChainTimestamp = betAccount.timestamp.toNumber();
+          // Check if this bet belongs to this market
+          if (betAccount.market.toBase58() !== marketPDA.toBase58()) continue;
 
-        marketBets.push({
-          id: bet.publicKey.toBase58(),
-          marketId: betAccount.marketId,
-          outcome: betAccount.outcome.yes ? 'YES' : 'NO',
-          amount: betAccount.amount.toNumber() / 1000000000, // Convert lamports to SOL
-          timestamp: onChainTimestamp * 1000, // Convert to ms for display
-          txSignature: '',
-          status: betAccount.isClaimed ? 'won' : 'confirmed',
-          betPubkey: bet.publicKey.toBase58(), // Store the actual bet account address
-          betIndex: betIndex, // Store bet_index for PDA derivation
-        });
+          // Get bet_index from the on-chain account (using snake_case)
+          const betIndex = betAccount.bet_index ? betAccount.bet_index.toNumber() : undefined;
+          const onChainTimestamp = betAccount.timestamp.toNumber();
+          const outcomeIndex = betAccount.outcome_index;
+
+          // Get the outcome label from the market
+          const marketAccountInfo = await connection.getAccountInfo(marketPDA);
+          let outcomeLabel = 'Unknown';
+          if (marketAccountInfo) {
+            try {
+              const marketData = coder.decode('Market', marketAccountInfo.data) as any;
+              const numOutcomes = marketData.num_outcomes;
+              const outcomeLabels = marketData.outcome_labels.slice(0, numOutcomes);
+              outcomeLabel = outcomeLabels[outcomeIndex] || 'Unknown';
+            } catch (err) {
+              // Fallback to YES/NO if can't fetch market
+              outcomeLabel = outcomeIndex === 0 ? 'YES' : 'NO';
+            }
+          }
+
+          marketBets.push({
+            id: pubkey.toBase58(),
+            marketId: betAccount.market_id,
+            outcome: outcomeLabel,
+            amount: betAccount.amount.toNumber() / 1000000000, // Convert lamports to SOL
+            timestamp: onChainTimestamp * 1000, // Convert to ms for display
+            txSignature: '',
+            status: betAccount.is_claimed ? 'won' : 'confirmed',
+            betPubkey: pubkey.toBase58(), // Store the actual bet account address
+            betIndex: betIndex, // Store bet_index for PDA derivation
+          });
+        } catch (err) {
+          // Skip non-Bet accounts
+          continue;
+        }
       }
 
       setUserBets(marketBets);
     } catch (err) {
+      console.error('Error fetching user bets:', err);
       // Fallback to localStorage
       try {
         const storedBets = localStorage.getItem(`bets_${publicKey?.toString()}_${marketId}`);
@@ -282,6 +323,12 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     try {
       console.log('[Bet Flow] Starting X402 bet placement...');
 
+      // Find outcome index in the market outcomes array
+      const outcomeIndex = market.outcomes.indexOf(outcome);
+      if (outcomeIndex === -1) {
+        throw new Error('Invalid outcome');
+      }
+
       // Use X402 protocol for bet placement
       const result = await placeBetWithX402(
         market.id,
@@ -291,56 +338,58 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
           // This callback is called after X402 payment is verified
           console.log('[Bet Flow] X402 payment verified, placing bet on-chain...');
 
-          const betOutcome = outcome === 'YES' ? BetOutcome.Yes : BetOutcome.No;
-
           // Place bet on-chain (now authorized by X402 payment)
           const betSignature = await placeBetOnChain(
             connection,
             { publicKey, signTransaction, connected } as any,
             market.id,
-            betOutcome,
+            outcomeIndex,
             betAmount,
             market.endDate,
-            market.question
+            market.question,
+            market.outcomes // Pass market outcomes
           );
 
           console.log('[Bet Flow] Bet placed on-chain:', betSignature);
-
-          // Create bet record
-          const newBet: Bet = {
-            id: betSignature,
-            marketId: market.id,
-            outcome,
-            amount: betAmount,
-            timestamp: Date.now(),
-            txSignature: betSignature,
-            status: 'confirmed',
-          };
-
-          // Update local state
-          const updatedBets = [...userBets, newBet];
-          setUserBets(updatedBets);
-
-          // Also store locally as backup
-          localStorage.setItem(
-            `bets_${publicKey.toString()}_${marketId}`,
-            JSON.stringify(updatedBets)
-          );
-
-          setBetSuccess(true);
-          setTimeout(() => setBetSuccess(false), 5000);
-
-          // Refresh market data to show updated percentages
-          await fetchMarket();
-          await fetchUserBets();
+          return betSignature;
         }
       );
 
-      if (result.success) {
-        console.log('[Bet Flow] X402 bet flow completed successfully');
-      } else {
+      if (!result.success) {
         throw new Error(result.error || 'X402 bet failed');
       }
+
+      const betSignature = result.betSignature!;
+
+      // Create bet record
+      const newBet: Bet = {
+        id: betSignature,
+        marketId: market.id,
+        outcome,
+        amount: betAmount,
+        timestamp: Date.now(),
+        txSignature: betSignature,
+        status: 'confirmed',
+      };
+
+      // Update local state
+      const updatedBets = [...userBets, newBet];
+      setUserBets(updatedBets);
+
+      // Also store locally as backup
+      localStorage.setItem(
+        `bets_${publicKey.toString()}_${marketId}`,
+        JSON.stringify(updatedBets)
+      );
+
+      setBetSuccess(true);
+      setTimeout(() => setBetSuccess(false), 5000);
+
+      // Refresh market data to show updated percentages
+      await fetchMarket();
+      await fetchUserBets();
+
+      console.log('[Bet Flow] X402 bet flow completed successfully');
 
     } catch (err: any) {
       const errorMsg = err.message || err.transactionMessage || '';
@@ -381,7 +430,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     }
   };
 
-  const handleResolveMarket = async (outcome: 'YES' | 'NO') => {
+  const handleResolveMarket = async (outcomeIndex: number, outcomeName: string) => {
     if (!connected || !publicKey || !signTransaction) {
       alert('Please connect your wallet first');
       return;
@@ -392,7 +441,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
       return;
     }
 
-    if (confirm(`Are you sure you want to resolve this market as ${outcome}? This action cannot be undone.`)) {
+    if (confirm(`Are you sure you want to resolve this market as "${outcomeName}"? This action cannot be undone.`)) {
       setResolving(true);
 
       try {
@@ -400,10 +449,10 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
           connection,
           { publicKey, signTransaction, connected } as any,
           marketId,
-          outcome === 'YES' ? BetOutcome.Yes : BetOutcome.No
+          outcomeIndex
         );
 
-        alert(`Market resolved successfully! Transaction: ${signature}`);
+        alert(`Market resolved successfully as "${outcomeName}"! Transaction: ${signature}`);
 
         // Refresh market data
         await fetchOnChainMarketData();
@@ -413,7 +462,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
         // Check if it's the "already processed" error - transaction likely succeeded
         if (errorMsg.includes('already been processed') || errorMsg.includes('MarketResolved')) {
-          alert(`Market resolved successfully as ${outcome}!`);
+          alert(`Market resolved successfully as "${outcomeName}"!`);
 
           // Refresh market data to show resolution
           await fetchOnChainMarketData();
@@ -546,6 +595,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
   const volume = parseFloat(market.volume) || 0;
   const liquidity = parseFloat(market.liquidity) || 0;
+  const isMultiOutcome = market.outcomes.length > 2;
   const yesPrice = parseFloat(market.outcomePrices[0]) || 0.5;
   const noPrice = parseFloat(market.outcomePrices[1]) || 0.5;
 
@@ -666,44 +716,44 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                   </div>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
-                  <Button
-                    onClick={() => handleResolveMarket('YES')}
-                    disabled={resolving}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                    size="lg"
-                  >
-                    {resolving ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Resolving...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="w-4 h-4 mr-2" />
-                        Resolve as YES
-                      </>
-                    )}
-                  </Button>
+                <div className={`grid gap-3 ${market.outcomes.length === 2 ? 'md:grid-cols-2' : market.outcomes.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
+                  {market.outcomes.map((outcome, index) => {
+                    const colors = [
+                      { bg: 'bg-green-600', hover: 'hover:bg-green-700' },
+                      { bg: 'bg-blue-600', hover: 'hover:bg-blue-700' },
+                      { bg: 'bg-amber-600', hover: 'hover:bg-amber-700' },
+                      { bg: 'bg-red-600', hover: 'hover:bg-red-700' },
+                      { bg: 'bg-purple-600', hover: 'hover:bg-purple-700' },
+                      { bg: 'bg-pink-600', hover: 'hover:bg-pink-700' },
+                      { bg: 'bg-indigo-600', hover: 'hover:bg-indigo-700' },
+                      { bg: 'bg-teal-600', hover: 'hover:bg-teal-700' },
+                      { bg: 'bg-orange-600', hover: 'hover:bg-orange-700' },
+                      { bg: 'bg-cyan-600', hover: 'hover:bg-cyan-700' },
+                    ];
+                    const colorClass = colors[index % colors.length];
 
-                  <Button
-                    onClick={() => handleResolveMarket('NO')}
-                    disabled={resolving}
-                    className="bg-red-600 hover:bg-red-700 text-white"
-                    size="lg"
-                  >
-                    {resolving ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Resolving...
-                      </>
-                    ) : (
-                      <>
-                        <XCircle className="w-4 h-4 mr-2" />
-                        Resolve as NO
-                      </>
-                    )}
-                  </Button>
+                    return (
+                      <Button
+                        key={index}
+                        onClick={() => handleResolveMarket(index, outcome)}
+                        disabled={resolving}
+                        className={`${colorClass.bg} ${colorClass.hover} text-white`}
+                        size="lg"
+                      >
+                        {resolving ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Resolving...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                            {outcome}
+                          </>
+                        )}
+                      </Button>
+                    );
+                  })}
                 </div>
 
                 <div className="text-xs text-muted-foreground pt-2 border-t border-border/50">
@@ -798,55 +848,36 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
           {/* Probability Chart */}
           <Card className="glass p-6">
             <h3 className="text-lg font-semibold mb-4">Market Probabilities</h3>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie
-                      data={[
-                        { name: 'YES', value: yesPrice * 100, amount: parseFloat(market.volume) * yesPrice },
-                        { name: 'NO', value: noPrice * 100, amount: parseFloat(market.volume) * noPrice }
-                      ]}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, value }) => `${name}: ${value.toFixed(1)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      <Cell fill="#10b981" />
-                      <Cell fill="#ef4444" />
-                    </Pie>
-                    <Tooltip formatter={(value: any) => `${value.toFixed(1)}%`} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-green-500" />
-                      <span className="font-semibold">YES</span>
+            {isMultiOutcome ? (
+              /* Multi-outcome display */
+              <div className="space-y-3">
+                {market.outcomes.map((outcome, index) => {
+                  const probability = parseFloat(market.outcomePrices[index]) * 100;
+                  const staked = parseFloat(market.volume) * parseFloat(market.outcomePrices[index]);
+                  const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
+                  const color = colors[index % colors.length];
+
+                  return (
+                    <div key={index} className="space-y-2 p-3 rounded-lg bg-background/50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+                          <span className="font-semibold">{outcome}</span>
+                        </div>
+                        <span className="text-xl font-bold" style={{ color }}>{probability.toFixed(1)}%</span>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Total staked: {staked.toFixed(3)} SOL
+                      </div>
+                      <div className="w-full bg-border/30 rounded-full h-2">
+                        <div
+                          className="h-2 rounded-full transition-all"
+                          style={{ width: `${probability}%`, backgroundColor: color }}
+                        />
+                      </div>
                     </div>
-                    <span className="text-2xl font-bold text-green-500">{(yesPrice * 100).toFixed(1)}%</span>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Total staked: {(parseFloat(market.volume) * yesPrice).toFixed(3)} SOL
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-red-500" />
-                      <span className="font-semibold">NO</span>
-                    </div>
-                    <span className="text-2xl font-bold text-red-500">{(noPrice * 100).toFixed(1)}%</span>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Total staked: {(parseFloat(market.volume) * noPrice).toFixed(3)} SOL
-                  </div>
-                </div>
+                  );
+                })}
                 <div className="pt-4 border-t border-border">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Total Pool:</span>
@@ -854,7 +885,66 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                   </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              /* Binary YES/NO display */
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'YES', value: yesPrice * 100, amount: parseFloat(market.volume) * yesPrice },
+                          { name: 'NO', value: noPrice * 100, amount: parseFloat(market.volume) * noPrice }
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, value }) => `${name}: ${value.toFixed(1)}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        <Cell fill="#10b981" />
+                        <Cell fill="#ef4444" />
+                      </Pie>
+                      <Tooltip formatter={(value: any) => `${value.toFixed(1)}%`} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-green-500" />
+                        <span className="font-semibold">YES</span>
+                      </div>
+                      <span className="text-2xl font-bold text-green-500">{(yesPrice * 100).toFixed(1)}%</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Total staked: {(parseFloat(market.volume) * yesPrice).toFixed(3)} SOL
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-red-500" />
+                        <span className="font-semibold">NO</span>
+                      </div>
+                      <span className="text-2xl font-bold text-red-500">{(noPrice * 100).toFixed(1)}%</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Total staked: {(parseFloat(market.volume) * noPrice).toFixed(3)} SOL
+                    </div>
+                  </div>
+                  <div className="pt-4 border-t border-border">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Total Pool:</span>
+                      <span className="font-semibold">{parseFloat(market.volume).toFixed(3)} SOL</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </Card>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
@@ -939,7 +1029,56 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                       This market has ended and is no longer accepting bets
                     </p>
                   </Card>
+                ) : isMultiOutcome ? (
+                  /* Multi-outcome betting buttons */
+                  <div className="grid gap-3">
+                    {market.outcomes.map((outcome, index) => {
+                      const probability = parseFloat(market.outcomePrices[index]);
+                      const colors = [
+                        { border: 'border-green-500/50', bg: 'bg-green-500/10', hover: 'hover:bg-green-500/20', text: 'text-green-500', hoverBorder: 'hover:border-green-500' },
+                        { border: 'border-blue-500/50', bg: 'bg-blue-500/10', hover: 'hover:bg-blue-500/20', text: 'text-blue-500', hoverBorder: 'hover:border-blue-500' },
+                        { border: 'border-amber-500/50', bg: 'bg-amber-500/10', hover: 'hover:bg-amber-500/20', text: 'text-amber-500', hoverBorder: 'hover:border-amber-500' },
+                        { border: 'border-red-500/50', bg: 'bg-red-500/10', hover: 'hover:bg-red-500/20', text: 'text-red-500', hoverBorder: 'hover:border-red-500' },
+                        { border: 'border-purple-500/50', bg: 'bg-purple-500/10', hover: 'hover:bg-purple-500/20', text: 'text-purple-500', hoverBorder: 'hover:border-purple-500' },
+                        { border: 'border-pink-500/50', bg: 'bg-pink-500/10', hover: 'hover:bg-pink-500/20', text: 'text-pink-500', hoverBorder: 'hover:border-pink-500' },
+                      ];
+                      const colorClass = colors[index % colors.length];
+
+                      return (
+                        <button
+                          key={index}
+                          onClick={() => handlePlaceBet(outcome)}
+                          disabled={placingBet || isExpired}
+                          className={`group relative p-4 rounded-xl border-2 ${colorClass.border} ${colorClass.hoverBorder} ${colorClass.bg} ${colorClass.hover} transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 text-left">
+                              <span className={`text-lg font-bold ${colorClass.text}`}>{outcome}</span>
+                              <div className="text-sm text-muted-foreground mt-1">
+                                {(probability * 100).toFixed(1)}% chance
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className={`text-2xl font-bold ${colorClass.text}`}>
+                                {(probability * 100).toFixed(0)}¢
+                              </span>
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                                <Zap className="w-3 h-3" />
+                                <span>Bet {betAmount} SOL</span>
+                              </div>
+                            </div>
+                          </div>
+                          {placingBet && selectedOutcome === outcome && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-xl">
+                              <Loader2 className={`w-6 h-6 animate-spin ${colorClass.text}`} />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 ) : (
+                  /* Binary YES/NO betting buttons */
                   <div className="grid md:grid-cols-2 gap-4">
                     {/* YES Button */}
                     <button
@@ -1089,9 +1228,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                     {/* Bet List */}
                     <div className="space-y-2 max-h-96 overflow-y-auto">
                       {userBets.map((bet, index) => {
-                        const isWinner = isResolved &&
-                          ((winningOutcome === 'YES' && bet.outcome === 'YES') ||
-                           (winningOutcome === 'NO' && bet.outcome === 'NO'));
+                        const isWinner = isResolved && bet.outcome === winningOutcome;
                         const isClaimed = bet.status === 'won' || bet.payout !== undefined;
 
                         return (

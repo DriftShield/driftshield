@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
-import { getMarketPDA, resolveMarket, BetOutcome, PROGRAM_ID, emergencyWithdraw, getVaultPDA } from "@/lib/solana/prediction-bets";
+import { getMarketPDA, resolveMarket, PROGRAM_ID, emergencyWithdraw, getVaultPDA } from "@/lib/solana/prediction-bets";
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
 import IDL from '@/lib/solana/prediction_bets_idl.json';
 import { CheckCircle2, XCircle, Loader2, DollarSign, AlertTriangle } from "lucide-react";
@@ -16,10 +16,11 @@ interface AdminMarket {
   title: string;
   authority: string;
   endTimestamp: number;
-  totalYesAmount: number;
-  totalNoAmount: number;
+  numOutcomes: number;
+  outcomeLabels: string[];
+  outcomeAmounts: number[];
   isResolved: boolean;
-  winningOutcome: { yes: {} } | { no: {} } | null;
+  winningOutcome: number | null;
   vaultBalance: number;
 }
 
@@ -51,33 +52,53 @@ export default function AdminDashboard() {
       const provider = new AnchorProvider(connection, dummyWallet as any, { commitment: 'confirmed' });
       const program = new Program(IDL as any, provider);
 
-      // Fetch all markets
-      const accounts = await program.account.market.all();
+      // Use BorshAccountsCoder for reliable decoding
+      const { BorshAccountsCoder } = await import('@coral-xyz/anchor');
+      const coder = new BorshAccountsCoder(IDL as any);
+      const programAccounts = await connection.getProgramAccounts(PROGRAM_ID);
 
       // Filter for markets where I'm the authority
       const myMarkets: AdminMarket[] = [];
 
-      for (const account of accounts) {
-        const marketData = account.account as any;
+      for (const { pubkey, account } of programAccounts) {
+        try {
+          const marketData = coder.decode('Market', account.data);
 
-        if (marketData.authority.toString() === publicKey.toString()) {
-          const [marketPDA] = getMarketPDA(marketData.marketId);
-          const [vaultPDA] = getVaultPDA(marketPDA);
+          if (marketData.authority.toString() === publicKey.toString()) {
+            const [marketPDA] = getMarketPDA(marketData.market_id);
+            const [vaultPDA] = getVaultPDA(marketPDA);
 
-          // Get vault balance
-          const vaultBalance = await connection.getBalance(vaultPDA);
+            // Get vault balance
+            const vaultBalance = await connection.getBalance(vaultPDA);
 
-          myMarkets.push({
-            id: marketData.marketId,
-            title: marketData.title,
-            authority: marketData.authority.toString(),
-            endTimestamp: marketData.endTimestamp.toNumber(),
-            totalYesAmount: marketData.totalYesAmount.toNumber() / 1e9,
-            totalNoAmount: marketData.totalNoAmount.toNumber() / 1e9,
-            isResolved: marketData.isResolved,
-            winningOutcome: marketData.winningOutcome,
-            vaultBalance: vaultBalance / 1e9,
-          });
+            // Extract outcome data
+            const numOutcomes = marketData.num_outcomes;
+            const outcomeLabels = marketData.outcome_labels.slice(0, numOutcomes);
+            const outcomeAmounts = marketData.outcome_amounts.slice(0, numOutcomes).map((amt: any) => amt.toNumber() / 1e9);
+
+            // Check resolution status
+            const resolutionStatus = marketData.resolution_status;
+            const isResolved = resolutionStatus && Object.keys(resolutionStatus).some(k =>
+              k === 'OracleResolved' || k === 'AdminResolved' || k === 'Finalized'
+            );
+            const winningOutcome = isResolved ? marketData.winning_outcome : null;
+
+            myMarkets.push({
+              id: marketData.market_id,
+              title: marketData.title,
+              authority: marketData.authority.toString(),
+              endTimestamp: marketData.end_timestamp.toNumber(),
+              numOutcomes,
+              outcomeLabels,
+              outcomeAmounts,
+              isResolved,
+              winningOutcome,
+              vaultBalance: vaultBalance / 1e9,
+            });
+          }
+        } catch {
+          // Not a Market account, skip
+          continue;
         }
       }
 
@@ -89,13 +110,13 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleResolve = async (marketId: string, outcome: 'YES' | 'NO') => {
+  const handleResolve = async (marketId: string, outcomeIndex: number, outcomeLabel: string) => {
     if (!connected || !publicKey || !signTransaction) {
       alert('Please connect your wallet');
       return;
     }
 
-    const confirmed = confirm(`Resolve this market as ${outcome}? This action cannot be undone!`);
+    const confirmed = confirm(`Resolve this market as "${outcomeLabel}"? This action cannot be undone!`);
     if (!confirmed) return;
 
     setResolving(marketId);
@@ -105,10 +126,10 @@ export default function AdminDashboard() {
         connection,
         { publicKey, signTransaction, connected } as any,
         marketId,
-        outcome === 'YES' ? BetOutcome.Yes : BetOutcome.No
+        outcomeIndex
       );
 
-      alert(`Market resolved as ${outcome}! Transaction: ${signature}`);
+      alert(`Market resolved as "${outcomeLabel}"! Transaction: ${signature}`);
       await fetchMyMarkets(); // Refresh
     } catch (error: any) {
       console.error('Error resolving market:', error);
@@ -205,10 +226,13 @@ export default function AdminDashboard() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <Badge variant={market.isResolved ? "default" : isExpired ? "destructive" : "secondary"}>
                               {market.isResolved
-                                ? `Resolved - ${market.winningOutcome?.yes ? 'YES' : 'NO'} Won`
+                                ? `Resolved - ${market.outcomeLabels[market.winningOutcome!]} Won`
                                 : isExpired
                                 ? 'Ended - Needs Resolution'
                                 : 'Active'}
+                            </Badge>
+                            <Badge variant="outline">
+                              {market.numOutcomes} Outcomes
                             </Badge>
                             <span className="text-sm text-muted-foreground">
                               Ends: {new Date(market.endTimestamp * 1000).toLocaleDateString()}
@@ -217,52 +241,61 @@ export default function AdminDashboard() {
                         </div>
                       </div>
 
-                      <div className="grid md:grid-cols-4 gap-4">
-                        <div>
-                          <div className="text-xs text-muted-foreground">YES Pool</div>
-                          <div className="font-semibold text-green-500">{market.totalYesAmount.toFixed(3)} SOL</div>
-                        </div>
-                        <div>
-                          <div className="text-xs text-muted-foreground">NO Pool</div>
-                          <div className="font-semibold text-red-500">{market.totalNoAmount.toFixed(3)} SOL</div>
-                        </div>
-                        <div>
-                          <div className="text-xs text-muted-foreground">Total Pool</div>
-                          <div className="font-semibold">{(market.totalYesAmount + market.totalNoAmount).toFixed(3)} SOL</div>
-                        </div>
-                        <div>
-                          <div className="text-xs text-muted-foreground">Vault Balance</div>
-                          <div className="font-semibold flex items-center gap-1">
-                            <DollarSign className="w-4 h-4" />
-                            {market.vaultBalance.toFixed(3)} SOL
+                      <div className="space-y-2">
+                        {market.outcomeLabels.map((label, index) => (
+                          <div key={index} className="flex items-center justify-between p-2 rounded bg-muted/30">
+                            <span className="font-medium">{label}</span>
+                            <span className="text-sm text-muted-foreground">{market.outcomeAmounts[index].toFixed(3)} SOL</span>
                           </div>
+                        ))}
+                        <div className="flex items-center justify-between p-2 rounded bg-primary/10 border border-primary/30">
+                          <span className="font-semibold">Total Pool</span>
+                          <span className="font-semibold">{market.outcomeAmounts.reduce((sum, amt) => sum + amt, 0).toFixed(3)} SOL</span>
+                        </div>
+                        <div className="flex items-center justify-between p-2 rounded bg-secondary/10 border border-secondary/30">
+                          <span className="font-semibold flex items-center gap-1">
+                            <DollarSign className="w-4 h-4" />
+                            Vault Balance
+                          </span>
+                          <span className="font-semibold">{market.vaultBalance.toFixed(3)} SOL</span>
                         </div>
                       </div>
 
                       {canResolve && (
-                        <div className="flex gap-2 pt-4 border-t border-border">
-                          <Button
-                            onClick={() => handleResolve(market.id, 'YES')}
-                            disabled={resolving === market.id}
-                            className="flex-1 bg-green-600 hover:bg-green-700"
-                          >
-                            {resolving === market.id ? (
-                              <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Resolving...</>
-                            ) : (
-                              <><CheckCircle2 className="w-4 h-4 mr-2" />Resolve as YES</>
-                            )}
-                          </Button>
-                          <Button
-                            onClick={() => handleResolve(market.id, 'NO')}
-                            disabled={resolving === market.id}
-                            className="flex-1 bg-red-600 hover:bg-red-700"
-                          >
-                            {resolving === market.id ? (
-                              <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Resolving...</>
-                            ) : (
-                              <><XCircle className="w-4 h-4 mr-2" />Resolve as NO</>
-                            )}
-                          </Button>
+                        <div className="space-y-2 pt-4 border-t border-border">
+                          <p className="text-sm font-medium">Select Winning Outcome:</p>
+                          <div className={`grid gap-2 ${market.numOutcomes === 2 ? 'grid-cols-2' : market.numOutcomes === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                            {market.outcomeLabels.map((label, index) => {
+                              const colors = [
+                                'bg-green-600 hover:bg-green-700',
+                                'bg-blue-600 hover:bg-blue-700',
+                                'bg-amber-600 hover:bg-amber-700',
+                                'bg-red-600 hover:bg-red-700',
+                                'bg-purple-600 hover:bg-purple-700',
+                                'bg-pink-600 hover:bg-pink-700',
+                                'bg-indigo-600 hover:bg-indigo-700',
+                                'bg-teal-600 hover:bg-teal-700',
+                                'bg-orange-600 hover:bg-orange-700',
+                                'bg-cyan-600 hover:bg-cyan-700',
+                              ];
+                              const colorClass = colors[index % colors.length];
+
+                              return (
+                                <Button
+                                  key={index}
+                                  onClick={() => handleResolve(market.id, index, label)}
+                                  disabled={resolving === market.id}
+                                  className={colorClass}
+                                >
+                                  {resolving === market.id ? (
+                                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Resolving...</>
+                                  ) : (
+                                    <><CheckCircle2 className="w-4 h-4 mr-2" />{label}</>
+                                  )}
+                                </Button>
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
 

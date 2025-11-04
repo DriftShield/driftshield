@@ -71,15 +71,28 @@ export default function MyBetsPage() {
 
       console.log('Fetching bets for user:', publicKey.toBase58())
 
-      // OPTIMIZED: Fetch all bet accounts for this user in ONE query
-      const betAccounts = await program.account.bet.all([
-        {
-          memcmp: {
-            offset: 8, // After discriminator
-            bytes: publicKey.toBase58(),
+      // Use BorshAccountsCoder for reliable decoding
+      const { BorshAccountsCoder } = await import('@coral-xyz/anchor')
+      const coder = new BorshAccountsCoder(IDL as any)
+      const programAccounts = await connection.getProgramAccounts(PROGRAM_ID)
+
+      // Filter and decode Bet accounts for this user
+      const betAccounts: any[] = []
+      const marketPubkeySet = new Set<string>()
+
+      for (const { pubkey, account } of programAccounts) {
+        try {
+          const betData = coder.decode('Bet', account.data)
+          if (betData.user.toString() === publicKey.toString()) {
+            betAccounts.push({ pubkey, account: betData })
+            // Track market IDs for fetching
+            marketPubkeySet.add(betData.market_id)
           }
+        } catch {
+          // Not a Bet account or decode error, skip
+          continue
         }
-      ])
+      }
 
       console.log('Found total bets for user:', betAccounts.length)
 
@@ -89,19 +102,19 @@ export default function MyBetsPage() {
         return
       }
 
-      // Collect unique market public keys from all bets
-      const marketPubkeys = new Set(betAccounts.map(bet => (bet.account as any).market.toBase58()))
-      console.log('Found unique markets:', marketPubkeys.size)
+      console.log('Found unique markets:', marketPubkeySet.size)
 
-      // Fetch only the markets that user has bet on
+      // Fetch market data for all markets user has bet on
       const marketDataMap = new Map()
-      for (const marketPubkeyStr of marketPubkeys) {
+      for (const { pubkey, account } of programAccounts) {
         try {
-          const marketPubkey = new PublicKey(marketPubkeyStr)
-          const marketData = await program.account.market.fetch(marketPubkey)
-          marketDataMap.set(marketPubkeyStr, marketData)
-        } catch (e) {
-          console.log('Error fetching market:', marketPubkeyStr, e)
+          const marketData = coder.decode('Market', account.data)
+          if (marketPubkeySet.has(marketData.market_id)) {
+            marketDataMap.set(marketData.market_id, marketData)
+          }
+        } catch {
+          // Not a Market account, skip
+          continue
         }
       }
 
@@ -110,25 +123,35 @@ export default function MyBetsPage() {
       for (const betAccount of betAccounts) {
         try {
           const betData = betAccount.account as any
-          const marketPubkeyStr = betData.market.toBase58()
-          const marketData = marketDataMap.get(marketPubkeyStr)
+          const marketId = betData.market_id
+          const marketData = marketDataMap.get(marketId)
 
           if (!marketData) continue
 
-          const outcome = betData.outcome.yes ? 'YES' : 'NO'
-          const isResolved = (marketData as any).isResolved
+          // Get outcome label from market
+          const outcomeIndex = betData.outcome_index
+          const outcomeLabels = marketData.outcome_labels || []
+          const outcome = outcomeLabels[outcomeIndex] || `Outcome ${outcomeIndex}`
+
+          // Check resolution status (unified multi-outcome structure)
+          const resolutionStatus = marketData.resolution_status
+          // Market is resolved if status is OracleResolved, AdminResolved, or Finalized
+          const isResolved = resolutionStatus && Object.keys(resolutionStatus).some(k =>
+            k === 'OracleResolved' || k === 'AdminResolved' || k === 'Finalized'
+          )
+
           let winningOutcome = null
           let isWinner = false
 
           if (isResolved) {
-            const winOutcome = (marketData as any).winningOutcome
-            winningOutcome = winOutcome?.yes ? 'YES' : 'NO'
-            isWinner = outcome === winningOutcome
+            const winningOutcomeIndex = marketData.winning_outcome
+            winningOutcome = outcomeLabels[winningOutcomeIndex] || `Outcome ${winningOutcomeIndex}`
+            isWinner = outcomeIndex === winningOutcomeIndex
           }
 
           let status: 'active' | 'won' | 'lost' | 'claimed' = 'active'
           if (isResolved) {
-            if (betData.isClaimed) {
+            if (betData.is_claimed) {
               status = 'claimed'
             } else if (isWinner) {
               status = 'won'
@@ -138,12 +161,12 @@ export default function MyBetsPage() {
           }
 
           userBets.push({
-            marketId: betData.marketId,
-            marketTitle: (marketData as any).title || betData.marketId,
+            marketId: betData.market_id,
+            marketTitle: marketData.title || betData.market_id,
             outcome,
             amount: betData.amount.toNumber() / LAMPORTS_PER_SOL,
             timestamp: new Date(betData.timestamp.toNumber() * 1000),
-            isClaimed: betData.isClaimed,
+            isClaimed: betData.is_claimed,
             isResolved,
             winningOutcome,
             isWinner,

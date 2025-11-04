@@ -139,18 +139,36 @@ export default function ProfilePage() {
       const provider = new AnchorProvider(connection, dummyWallet as any, { commitment: 'confirmed' })
       const program = new Program(IDL as any, provider)
 
-      // Fetch user's bets
-      const betAccounts = await program.account.bet.all()
-      const userBets = betAccounts.filter((bet: any) =>
-        bet.account.user.toString() === publicKey.toString()
-      )
+      // Use BorshAccountsCoder for reliable decoding
+      const { BorshAccountsCoder } = await import('@coral-xyz/anchor')
+      const coder = new BorshAccountsCoder(IDL as any)
+      const programAccounts = await connection.getProgramAccounts(PROGRAM_ID)
 
-      // Fetch market data
-      const marketAccounts = await program.account.market.all()
+      // Decode market accounts
       const marketMap = new Map()
-      marketAccounts.forEach((market: any) => {
-        marketMap.set(market.account.marketId, market.account)
-      })
+      for (const { pubkey, account } of programAccounts) {
+        try {
+          const marketData = coder.decode('Market', account.data)
+          marketMap.set(marketData.market_id, marketData)
+        } catch {
+          // Not a Market account, skip
+          continue
+        }
+      }
+
+      // Decode bet accounts for this user
+      const userBets: any[] = []
+      for (const { pubkey, account } of programAccounts) {
+        try {
+          const betData = coder.decode('Bet', account.data)
+          if (betData.user.toString() === publicKey.toString()) {
+            userBets.push({ pubkey, account: betData })
+          }
+        } catch {
+          // Not a Bet account or decode error, skip
+          continue
+        }
+      }
 
       // Calculate stats
       let staked = 0
@@ -167,9 +185,9 @@ export default function ProfilePage() {
         const amount = betData.amount.toNumber() / 1e9
         staked += amount
 
-        const market = marketMap.get(betData.marketId)
+        const market = marketMap.get(betData.market_id)
         if (market) {
-          const marketId = betData.marketId
+          const marketId = betData.market_id
           const marketTitle = market.title || 'Unknown Market'
           const timestamp = betData.timestamp.toNumber()
           const dateStr = new Date(timestamp * 1000).toISOString().split('T')[0]
@@ -184,48 +202,62 @@ export default function ProfilePage() {
 
           let payout = 0
 
-          // Check if bet won
-          if (market.isResolved && market.winningOutcome) {
-            const userOutcome = betData.outcome.yes ? "Yes" : "No"
-            const winningOutcome = market.winningOutcome.yes ? "Yes" : "No"
+          // Get outcome label from market
+          const outcomeIndex = betData.outcome_index
+          const outcomeLabels = market.outcome_labels || []
+          const outcomeLabel = outcomeLabels[outcomeIndex] || `Outcome ${outcomeIndex}`
 
-            if (userOutcome === winningOutcome && betData.isClaimed) {
-              // Calculate payout based on pool ratios
-              const totalYes = market.totalYesAmount.toNumber() / 1e9
-              const totalNo = market.totalNoAmount.toNumber() / 1e9
-              const totalPool = totalYes + totalNo
+          // Check if bet won (using unified multi-outcome structure)
+          const resolutionStatus = market.resolution_status
+          const isResolved = resolutionStatus && Object.keys(resolutionStatus).some(k =>
+            k === 'OracleResolved' || k === 'AdminResolved' || k === 'Finalized'
+          )
 
-              if (userOutcome === "Yes") {
-                payout = (amount / totalYes) * totalPool
-              } else {
-                payout = (amount / totalNo) * totalPool
+          if (isResolved) {
+            const winningOutcomeIndex = market.winning_outcome
+
+            if (outcomeIndex === winningOutcomeIndex && betData.is_claimed) {
+              // Calculate payout based on outcome pool ratios
+              const outcomeAmounts = market.outcome_amounts || []
+              const numOutcomes = market.num_outcomes
+
+              let totalPool = 0
+              for (let i = 0; i < numOutcomes; i++) {
+                totalPool += outcomeAmounts[i]?.toNumber() || 0
               }
-              won += payout
-              winCount++
-              marketPerf.returned += payout
+              totalPool = totalPool / 1e9
 
-              // Track profit/loss
-              const profit = payout - amount
-              maxWin = Math.max(maxWin, profit)
-              maxLoss = Math.min(maxLoss, profit)
+              const winningOutcomeAmount = (outcomeAmounts[winningOutcomeIndex]?.toNumber() || 0) / 1e9
 
-              // Update daily data
-              if (!dailyMap.has(dateStr)) {
-                dailyMap.set(dateStr, { profit: 0, bets: 0 })
+              if (winningOutcomeAmount > 0) {
+                payout = (amount / winningOutcomeAmount) * totalPool
+                won += payout
+                winCount++
+                marketPerf.returned += payout
+
+                // Track profit/loss
+                const profit = payout - amount
+                maxWin = Math.max(maxWin, profit)
+                maxLoss = Math.min(maxLoss, profit)
+
+                // Update daily data
+                if (!dailyMap.has(dateStr)) {
+                  dailyMap.set(dateStr, { profit: 0, bets: 0 })
+                }
+                const daily = dailyMap.get(dateStr)!
+                daily.profit += profit
+                daily.bets += 1
               }
-              const daily = dailyMap.get(dateStr)!
-              daily.profit += profit
-              daily.bets += 1
             }
           }
 
           bets.push({
-            marketId: betData.marketId,
+            marketId: betData.market_id,
             marketTitle,
-            outcome: betData.outcome.yes ? "Yes" : "No",
+            outcome: outcomeLabel,
             amount,
             timestamp,
-            claimed: betData.isClaimed,
+            claimed: betData.is_claimed,
             payout
           })
         }

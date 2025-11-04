@@ -9,8 +9,9 @@ DriftShield allows users to create and participate in prediction markets for var
 ## Features
 
 ### Core Functionality
-- **Prediction Markets**: Bet on Yes/No outcomes for real-world events
-- **100+ Markets**: Integration with Polymarket API for diverse betting options
+- **Prediction Markets**: Bet on binary (Yes/No) and multi-outcome markets (2-10 choices)
+- **200+ Markets**: Integration with Polymarket API for diverse betting options
+- **Multi-Outcome Support**: Create and bet on markets with multiple possible outcomes
 - **On-Chain Storage**: All bets and market data stored on Solana blockchain
 - **Real-Time Updates**: Live market data, odds, and betting activity
 
@@ -118,14 +119,18 @@ The Solana program (`prediction_bets`) handles all on-chain logic:
 - **Vault**: PDA holding all funds for a market
 
 #### Instructions
-1. **initialize_market**: Create a new prediction market
-2. **place_bet**: Place a bet on Yes/No outcome
+1. **initialize_market**: Create a new prediction market (supports 2-10 outcomes)
+2. **place_bet**: Place a bet on any outcome (by index)
 3. **auto_resolve_market**: Oracle-based automatic resolution
 4. **dispute_resolution**: Challenge oracle resolution
 5. **admin_finalize_resolution**: Manual admin resolution
 6. **finalize_oracle_resolution**: Complete undisputed resolution
 7. **claim_payout**: Claim winnings after resolution
 8. **emergency_withdraw**: Admin emergency fund recovery
+
+#### Market Types
+- **Binary Markets**: Traditional Yes/No prediction markets
+- **Multi-Outcome Markets**: 3-10 possible outcomes (e.g., election winners, tournament results)
 
 #### Resolution Flow
 ```

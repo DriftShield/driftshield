@@ -7,7 +7,7 @@ const pendingBetPayments = new Map<string, {
   amount: number;
   recipient: string;
   marketId: string;
-  outcome: 'YES' | 'NO';
+  outcome: string; // Support multi-outcome markets
   betAmount: number;
   timestamp: number;
   userWallet: string;
@@ -38,12 +38,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  if (outcome !== 'YES' && outcome !== 'NO') {
-    return NextResponse.json(
-      { error: 'Outcome must be YES or NO' },
-      { status: 400 }
-    );
-  }
+  // Accept any outcome (for multi-outcome markets)
+  // Validation of valid outcomes happens on-chain
 
   const betAmountNum = parseFloat(betAmount);
   if (isNaN(betAmountNum) || betAmountNum <= 0) {
@@ -60,7 +56,7 @@ export async function GET(request: NextRequest) {
     amount: X402_PAYMENT_AMOUNT,
     recipient: TREASURY_WALLET,
     marketId,
-    outcome: outcome as 'YES' | 'NO',
+    outcome: outcome, // Support any outcome for multi-outcome markets
     betAmount: betAmountNum,
     timestamp: Date.now(),
     userWallet,

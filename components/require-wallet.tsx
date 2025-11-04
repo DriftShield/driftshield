@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useWallet } from '@/lib/wallet-context';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { Card } from '@/components/ui/card';
 import { WalletButton } from '@/components/wallet-button';
 import { Shield } from 'lucide-react';

@@ -89,8 +89,13 @@ export function useX402Bet() {
         `/api/bet?marketId=${marketId}&outcome=${outcome}&betAmount=${betAmount}&userWallet=${publicKey.toString()}`
       );
 
+      // Check for 402 status
+      console.log('[X402 Bet] Response status:', betRequest.status);
+
       if (betRequest.status !== 402) {
-        throw new Error('Expected 402 Payment Required response');
+        const errorText = await betRequest.text();
+        console.error('[X402 Bet] Unexpected response:', betRequest.status, errorText);
+        throw new Error(`Expected 402 Payment Required response, got ${betRequest.status}`);
       }
 
       const x402Response: X402BetResponse = await betRequest.json();
@@ -173,15 +178,18 @@ export function useX402Bet() {
       console.log('[X402 Bet] Step 4: Placing bet on-chain...');
       setStatus(prev => ({ ...prev, isPlacingBet: true }));
 
+      let betSignature: string | undefined;
       if (onBetPlaced) {
         // Call the provided callback to place the bet
-        // The callback should use the regular placeBet function
-        await onBetPlaced(x402Signature);
+        // The callback should return the bet transaction signature
+        betSignature = await onBetPlaced(x402Signature);
       }
+
+      setStatus(prev => ({ ...prev, betSignature: betSignature || null, isPlacingBet: false }));
 
       return {
         success: true,
-        betSignature: x402Signature, // For now, return X402 signature as proof
+        betSignature: betSignature || x402Signature, // Return actual bet signature or X402 as fallback
       };
 
     } catch (error) {
