@@ -6,26 +6,16 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, TrendingUp, Plus, Filter, Clock, Users, Loader2 } from "lucide-react";
+import { Search, TrendingUp, Plus, Filter, Clock, Loader2, Grid3X3, Binary } from "lucide-react";
 import Link from "next/link";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { getMarketPDA, PROGRAM_ID } from "@/lib/solana/prediction-bets";
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
 import IDL from '@/lib/solana/prediction_bets_idl.json';
 import { isAdmin } from "@/lib/constants/admin";
-
-interface Market {
-  id: string;
-  question: string;
-  category: string;
-  outcomes: string[];
-  volume: number;
-  liquidity: number;
-  probability: number;
-  endDate: string;
-  image?: string;
-  active: boolean;
-}
+import { fetchAllPolymarketMarkets, fetchPolymarketEvents } from "@/lib/api/polymarket";
+import { Market, BinaryMarket, MultiOutcomeMarket, isBinaryMarket, isMultiOutcomeMarket } from "@/lib/types/market";
+import { MultiOutcomeCard } from "@/components/markets/multi-outcome-card";
 
 export default function MarketsPage() {
   const { connection } = useConnection();
@@ -34,9 +24,9 @@ export default function MarketsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [showTrending, setShowTrending] = useState(false);
   const [showActiveOnly, setShowActiveOnly] = useState(true);
   const [sortBy, setSortBy] = useState<'recent' | 'volume' | 'ending-soon'>('recent');
+  const [marketTypeFilter, setMarketTypeFilter] = useState<'all' | 'binary' | 'multi'>('all');
   const [allMarkets, setAllMarkets] = useState<Market[]>([]);
 
   const userIsAdmin = isAdmin(publicKey?.toString());
@@ -47,17 +37,74 @@ export default function MarketsPage() {
 
   useEffect(() => {
     applyFilters();
-  }, [allMarkets, searchQuery, selectedCategory, showActiveOnly, sortBy]);
+  }, [allMarkets, searchQuery, selectedCategory, showActiveOnly, sortBy, marketTypeFilter]);
 
   const loadAllMarkets = async () => {
     try {
       setLoading(true);
-      const markets = await fetchCustomMarkets();
-      setAllMarkets(markets);
+
+      // Load both on-chain and Polymarket markets
+      const [onChainMarkets, polymarketMarkets] = await Promise.all([
+        fetchOnChainMarkets(),
+        fetchPolymarketEvents({ limit: 20, active: true }),
+      ]);
+
+      // Combine all markets
+      const combined: Market[] = [
+        ...onChainMarkets,
+        ...polymarketMarkets,
+      ];
+
+      setAllMarkets(combined);
     } catch (error) {
       console.error('Error loading markets:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchOnChainMarkets = async (): Promise<BinaryMarket[]> => {
+    try {
+      const dummyWallet = {
+        publicKey: PROGRAM_ID,
+        signTransaction: async (tx: any) => tx,
+        signAllTransactions: async (txs: any[]) => txs,
+      };
+
+      const provider = new AnchorProvider(connection, dummyWallet as any, { commitment: 'confirmed' });
+      const program = new Program(IDL as any, provider);
+      const accounts = await program.account.market.all();
+
+      const onChainMarkets: BinaryMarket[] = [];
+
+      for (const account of accounts) {
+        const marketData = account.account as any;
+        const endTimestamp = marketData.endTimestamp.toNumber();
+        const endDate = new Date(endTimestamp * 1000);
+
+        const totalYesAmount = marketData.totalYesAmount.toNumber() / 1e9;
+        const totalNoAmount = marketData.totalNoAmount.toNumber() / 1e9;
+        const totalVolume = totalYesAmount + totalNoAmount;
+        const yesProbability = totalVolume > 0 ? totalYesAmount / totalVolume : 0.5;
+
+        onChainMarkets.push({
+          id: marketData.marketId,
+          question: marketData.title,
+          category: 'Other',
+          outcomes: ['Yes', 'No'],
+          volume: totalVolume,
+          liquidity: totalVolume,
+          probability: yesProbability,
+          endDate: endDate.toISOString(),
+          active: endDate.getTime() > Date.now(),
+          isMultiOutcome: false,
+        });
+      }
+
+      return onChainMarkets;
+    } catch (error) {
+      console.error('Error fetching on-chain markets:', error);
+      return [];
     }
   };
 
@@ -72,11 +119,11 @@ export default function MarketsPage() {
       );
     }
 
-    // Category filter - Only filter if not "All" and we have that category
-    if (selectedCategory !== 'All') {
-      // For now, show all markets for any category since we don't have category metadata
-      // This prevents empty results when selecting categories
-      console.log(`Category filter: ${selectedCategory} - showing all markets (no category metadata yet)`);
+    // Market type filter
+    if (marketTypeFilter === 'binary') {
+      filtered = filtered.filter(m => isBinaryMarket(m));
+    } else if (marketTypeFilter === 'multi') {
+      filtered = filtered.filter(m => isMultiOutcomeMarket(m));
     }
 
     // Active only filter
@@ -108,57 +155,9 @@ export default function MarketsPage() {
     setMarkets(filtered);
   };
 
-  const fetchCustomMarkets = async (): Promise<Market[]> => {
-    try {
-      // Create a dummy wallet for reading
-      const dummyWallet = {
-        publicKey: PROGRAM_ID,
-        signTransaction: async (tx: any) => tx,
-        signAllTransactions: async (txs: any[]) => txs,
-      };
-
-      const provider = new AnchorProvider(connection, dummyWallet as any, { commitment: 'confirmed' });
-      const program = new Program(IDL as any, provider);
-
-      // Fetch all market accounts from the program
-      const accounts = await program.account.market.all();
-
-      const customMarkets: Market[] = [];
-
-      for (const account of accounts) {
-        const marketData = account.account as any;
-        const endTimestamp = marketData.endTimestamp.toNumber();
-        const endDate = new Date(endTimestamp * 1000);
-
-        // Calculate total volume and probability from bets
-        const totalYesAmount = marketData.totalYesAmount.toNumber() / 1e9; // Convert lamports to SOL
-        const totalNoAmount = marketData.totalNoAmount.toNumber() / 1e9;
-        const totalVolume = totalYesAmount + totalNoAmount;
-        const yesProbability = totalVolume > 0 ? totalYesAmount / totalVolume : 0.5;
-
-        customMarkets.push({
-          id: marketData.marketId,
-          question: marketData.title,
-          category: 'Other',
-          outcomes: ['Yes', 'No'],
-          volume: totalVolume,
-          liquidity: totalVolume,
-          probability: yesProbability,
-          endDate: endDate.toISOString(),
-          active: endDate.getTime() > Date.now(),
-        });
-      }
-
-      return customMarkets;
-    } catch (error) {
-      return [];
-    }
-  };
-
-
-
   const totalVolume = markets.reduce((sum, m) => sum + m.volume, 0);
-  const categories = ['All', 'Politics', 'Crypto', 'Sports', 'Science', 'Economy', 'Entertainment'];
+  const binaryCount = markets.filter(m => isBinaryMarket(m)).length;
+  const multiCount = markets.filter(m => isMultiOutcomeMarket(m)).length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -171,7 +170,7 @@ export default function MarketsPage() {
             <div>
               <h1 className="text-4xl font-bold">Prediction Markets</h1>
               <p className="text-muted-foreground mt-1">
-                Create and bet on custom prediction markets • Powered by Solana
+                Binary & Multi-Outcome Markets • Powered by Solana & Polymarket
               </p>
             </div>
             {userIsAdmin && (
@@ -185,22 +184,26 @@ export default function MarketsPage() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <Card className="glass p-4">
               <div className="text-2xl font-bold">{markets.length}</div>
-              <div className="text-sm text-muted-foreground">Active Markets</div>
+              <div className="text-sm text-muted-foreground">Total Markets</div>
+            </Card>
+            <Card className="glass p-4">
+              <div className="text-2xl font-bold">{binaryCount}</div>
+              <div className="text-sm text-muted-foreground">Binary</div>
+            </Card>
+            <Card className="glass p-4">
+              <div className="text-2xl font-bold">{multiCount}</div>
+              <div className="text-sm text-muted-foreground">Multi-Outcome</div>
             </Card>
             <Card className="glass p-4">
               <div className="text-2xl font-bold">
-                {totalVolume >= 1
-                  ? `${totalVolume.toFixed(2)} SOL`
-                  : `${(totalVolume * 1000).toFixed(0)}m SOL`}
+                {totalVolume >= 1000
+                  ? `$${(totalVolume / 1000).toFixed(1)}K`
+                  : `$${totalVolume.toFixed(0)}`}
               </div>
               <div className="text-sm text-muted-foreground">Total Volume</div>
-            </Card>
-            <Card className="glass p-4">
-              <div className="text-2xl font-bold">On-Chain</div>
-              <div className="text-sm text-muted-foreground">Solana Devnet</div>
             </Card>
             <Card className="glass p-4">
               <div className="text-2xl font-bold">X402</div>
@@ -210,7 +213,7 @@ export default function MarketsPage() {
 
           {/* Filters */}
           <Card className="glass p-4">
-            <div className="flex flex-col md:flex-row gap-3">
+            <div className="flex flex-col gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -222,15 +225,41 @@ export default function MarketsPage() {
               </div>
               <div className="flex gap-2 flex-wrap">
                 <Button
+                  variant={marketTypeFilter === 'all' ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setMarketTypeFilter('all')}
+                >
+                  All Types
+                </Button>
+                <Button
+                  variant={marketTypeFilter === 'binary' ? "default" : "outline"}
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setMarketTypeFilter('binary')}
+                >
+                  <Binary className="w-4 h-4" />
+                  Binary
+                </Button>
+                <Button
+                  variant={marketTypeFilter === 'multi' ? "default" : "outline"}
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setMarketTypeFilter('multi')}
+                >
+                  <Grid3X3 className="w-4 h-4" />
+                  Multi-Outcome
+                </Button>
+                <Button
                   variant={showActiveOnly ? "default" : "outline"}
-                  className="gap-2 bg-transparent"
+                  size="sm"
+                  className="gap-2"
                   onClick={() => setShowActiveOnly(!showActiveOnly)}
                 >
                   <Filter className="w-4 h-4" />
                   {showActiveOnly ? 'Active Only' : 'Show All'}
                 </Button>
                 <select
-                  className="h-10 px-3 rounded-lg border border-input bg-background/50 text-sm"
+                  className="h-9 px-3 rounded-lg border border-input bg-background/50 text-sm"
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as any)}
                 >
@@ -246,117 +275,22 @@ export default function MarketsPage() {
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              <span className="ml-2">Loading markets from blockchain...</span>
+              <span className="ml-2">Loading markets...</span>
             </div>
           ) : markets.length === 0 ? (
             <Card className="glass p-12 text-center">
               <p className="text-muted-foreground">
                 {userIsAdmin ? 'No markets found. Create your first market!' : 'No markets available yet. Check back soon!'}
               </p>
-              {userIsAdmin && (
-                <Button className="mt-4" asChild>
-                  <Link href="/dashboard/markets/new">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Market
-                  </Link>
-                </Button>
-              )}
             </Card>
           ) : (
             <div className="space-y-4">
               {markets.map((market) => {
-                const yesPrice = market.probability;
-                const noPrice = 1 - market.probability;
-
-                const endDate = new Date(market.endDate);
-                const daysUntilEnd = Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-
-                return (
-                  <Card key={market.id} className="glass p-6 hover:border-primary/50 transition-colors">
-                    <div className="space-y-4">
-                      {/* Header */}
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant="outline" className="text-xs">
-                              {market.category}
-                            </Badge>
-                            {market.volume > 1 && (
-                              <div className="flex items-center gap-1 text-xs text-secondary">
-                                <TrendingUp className="w-3 h-3" />
-                                <span>High Volume</span>
-                              </div>
-                            )}
-                            <Badge variant="default" className="text-xs">
-                              On-Chain
-                            </Badge>
-                          </div>
-                          <h3 className="text-base md:text-lg font-semibold leading-tight">{market.question}</h3>
-                          <div className="flex flex-wrap items-center gap-3 md:gap-4 text-xs md:text-sm text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-3 h-3 md:w-4 md:h-4" />
-                              <span>
-                                {daysUntilEnd > 0
-                                  ? `Ends in ${daysUntilEnd}d`
-                                  : 'Ended'}
-                              </span>
-                            </div>
-                            <div>
-                              <span>
-                                Vol: {market.volume >= 1
-                                  ? `${market.volume.toFixed(2)} SOL`
-                                  : `${(market.volume * 1000).toFixed(0)}m`}
-                              </span>
-                            </div>
-                            {market.liquidity > 0 && (
-                              <div>
-                                <span>
-                                  Liq: {market.liquidity >= 1
-                                    ? `${market.liquidity.toFixed(2)} SOL`
-                                    : `${(market.liquidity * 1000).toFixed(0)}m`}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Trading Interface */}
-                      <div className="grid grid-cols-2 gap-2 md:gap-3">
-                        <button className="p-3 md:p-4 rounded-lg border-2 border-secondary/50 hover:border-secondary bg-secondary/10 hover:bg-secondary/20 transition-colors text-left">
-                          <div className="flex items-center justify-between mb-1 md:mb-2">
-                            <span className="text-sm md:text-base font-semibold text-secondary">YES</span>
-                            <span className="text-xl md:text-2xl font-bold text-secondary">
-                              {(yesPrice * 100).toFixed(0)}¢
-                            </span>
-                          </div>
-                          <div className="text-[10px] md:text-xs text-muted-foreground">
-                            {(yesPrice * 100).toFixed(1)}% • 0.002 SOL
-                          </div>
-                        </button>
-
-                        <button className="p-3 md:p-4 rounded-lg border-2 border-accent/50 hover:border-accent bg-accent/10 hover:bg-accent/20 transition-colors text-left">
-                          <div className="flex items-center justify-between mb-1 md:mb-2">
-                            <span className="text-sm md:text-base font-semibold text-accent">NO</span>
-                            <span className="text-xl md:text-2xl font-bold text-accent">
-                              {(noPrice * 100).toFixed(0)}¢
-                            </span>
-                          </div>
-                          <div className="text-[10px] md:text-xs text-muted-foreground">
-                            {(noPrice * 100).toFixed(1)}% • 0.002 SOL
-                          </div>
-                        </button>
-                      </div>
-
-                      {/* View Details */}
-                      <Button variant="outline" className="w-full bg-transparent" asChild>
-                        <Link href={`/dashboard/markets/${market.id}`}>
-                          View Market Details & Place Bet
-                        </Link>
-                      </Button>
-                    </div>
-                  </Card>
-                );
+                if (isMultiOutcomeMarket(market)) {
+                  return <MultiOutcomeCard key={market.id} market={market} />;
+                } else {
+                  return <BinaryMarketCard key={market.id} market={market} />;
+                }
               })}
             </div>
           )}
@@ -365,8 +299,8 @@ export default function MarketsPage() {
           {markets.length > 0 && (
             <Card className="glass p-4">
               <p className="text-sm text-muted-foreground text-center">
-                Showing {markets.length} on-chain markets •
-                Powered by Solana blockchain •
+                Showing {markets.length} markets ({binaryCount} binary, {multiCount} multi-outcome) •
+                Powered by Solana & Polymarket •
                 X402 payments enabled
               </p>
             </Card>
@@ -374,5 +308,80 @@ export default function MarketsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Binary Market Card Component
+interface BinaryMarketCardProps {
+  market: BinaryMarket;
+}
+
+function BinaryMarketCard({ market }: BinaryMarketCardProps) {
+  const yesPrice = market.probability;
+  const noPrice = 1 - market.probability;
+  const endDate = new Date(market.endDate);
+  const daysUntilEnd = Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+
+  return (
+    <Card className="glass p-6 hover:border-primary/50 transition-colors">
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="outline" className="text-xs">{market.category}</Badge>
+              {market.volume > 1 && (
+                <div className="flex items-center gap-1 text-xs text-secondary">
+                  <TrendingUp className="w-3 h-3" />
+                  <span>High Volume</span>
+                </div>
+              )}
+              <Badge variant="default" className="text-xs">On-Chain</Badge>
+            </div>
+            <h3 className="text-base md:text-lg font-semibold leading-tight">{market.question}</h3>
+            <div className="flex flex-wrap items-center gap-3 md:gap-4 text-xs md:text-sm text-muted-foreground">
+              <div className="flex items-center gap-1">
+                <Clock className="w-3 h-3 md:w-4 md:h-4" />
+                <span>{daysUntilEnd > 0 ? `Ends in ${daysUntilEnd}d` : 'Ended'}</span>
+              </div>
+              <div>
+                <span>Vol: {market.volume >= 1 ? `${market.volume.toFixed(2)} SOL` : `${(market.volume * 1000).toFixed(0)}m`}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 md:gap-3">
+          <button className="p-3 md:p-4 rounded-lg border-2 border-secondary/50 hover:border-secondary bg-secondary/10 hover:bg-secondary/20 transition-colors text-left">
+            <div className="flex items-center justify-between mb-1 md:mb-2">
+              <span className="text-sm md:text-base font-semibold text-secondary">YES</span>
+              <span className="text-xl md:text-2xl font-bold text-secondary">
+                {(yesPrice * 100).toFixed(0)}¢
+              </span>
+            </div>
+            <div className="text-[10px] md:text-xs text-muted-foreground">
+              {(yesPrice * 100).toFixed(1)}%
+            </div>
+          </button>
+
+          <button className="p-3 md:p-4 rounded-lg border-2 border-accent/50 hover:border-accent bg-accent/10 hover:bg-accent/20 transition-colors text-left">
+            <div className="flex items-center justify-between mb-1 md:mb-2">
+              <span className="text-sm md:text-base font-semibold text-accent">NO</span>
+              <span className="text-xl md:text-2xl font-bold text-accent">
+                {(noPrice * 100).toFixed(0)}¢
+              </span>
+            </div>
+            <div className="text-[10px] md:text-xs text-muted-foreground">
+              {(noPrice * 100).toFixed(1)}%
+            </div>
+          </button>
+        </div>
+
+        <Button variant="outline" className="w-full bg-transparent" asChild>
+          <Link href={`/dashboard/markets/${market.id}`}>
+            View Market Details & Place Bet
+          </Link>
+        </Button>
+      </div>
+    </Card>
   );
 }
