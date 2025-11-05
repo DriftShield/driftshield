@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { paymentMiddleware, type SolanaAddress } from 'x402-next';
 
 const facilitatorUrl = process.env.FACILITATOR_URL || 'https://facilitator.payai.network';
-const payTo = (process.env.ADDRESS || process.env.TREASURY_WALLET || '53syaxqneCrGxn516N36uj3m6Aa1ySLrj2hTiqqtFYPp') as SolanaAddress;
+const payTo = process.env.ADDRESS || process.env.TREASURY_WALLET || '53syaxqneCrGxn516N36uj3m6Aa1ySLrj2hTiqqtFYPp';
 
 // Store bet authorizations after payment (use Redis/DB in production)
 const betAuthorizations = new Map<string, {
@@ -21,38 +20,13 @@ const AUTHORIZATION_EXPIRY = 5 * 60 * 1000; // 5 minutes
  * Cost: $1.00 USDC per bet
  */
 
-// Create x402 middleware once
-const x402Middleware = paymentMiddleware(
-  payTo,
-  {
-    // Bet placement endpoint - requires $1.00 USDC payment
-    'POST /api/x402-bet': {
-      price: '$1.00',
-      network: 'solana',
-      config: {
-        description: 'Place a bet on prediction market',
-        maxTimeoutSeconds: 60,
-      }
-    },
-  },
-  {
-    url: facilitatorUrl,
-  }
-);
-
 /**
  * POST handler - Place bet with X402 payment
- * Applies x402 payment middleware inline
+ * The x402 middleware is applied in middleware.ts
+ * This route handler receives the request after payment verification
  */
 export async function POST(request: NextRequest) {
   try {
-    // Apply x402 payment verification
-    const x402Response = await x402Middleware(request);
-    if (x402Response && x402Response.status !== 200) {
-      // Payment required or verification failed
-      return x402Response;
-    }
-
     // Parse request body
     const body = await request.json();
     const { marketId, outcome, betAmount, userWallet } = body;
@@ -72,7 +46,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // At this point, payment has been verified by x402
+    // At this point, payment has been verified by x402 middleware
     // Create bet authorization
     const authorizationId = `${userWallet}-${marketId}-${Date.now()}`;
 
