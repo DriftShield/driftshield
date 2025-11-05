@@ -8,6 +8,129 @@
   },
   "instructions": [
     {
+      "name": "buy_from_curve",
+      "docs": [
+        "Buy from bonding curve - instant trade with automatic pricing",
+        "Uses constant product formula for price discovery"
+      ],
+      "discriminator": [
+        220,
+        94,
+        173,
+        236,
+        129,
+        110,
+        23,
+        21
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "market_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bet",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "arg",
+                "path": "bet_index"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "market_id",
+          "type": "string"
+        },
+        {
+          "name": "outcome_index",
+          "type": "u8"
+        },
+        {
+          "name": "sol_amount",
+          "type": "u64"
+        },
+        {
+          "name": "min_tokens_out",
+          "type": "u64"
+        },
+        {
+          "name": "bet_index",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "claim_payout",
       "docs": [
         "Claim payout for a winning bet"
@@ -491,6 +614,26 @@
       "code": 6011,
       "name": "InvalidBetIndex",
       "msg": "Invalid bet index"
+    },
+    {
+      "code": 6012,
+      "name": "SlippageTooHigh",
+      "msg": "Slippage tolerance exceeded - price moved too much"
+    },
+    {
+      "code": 6013,
+      "name": "Overflow",
+      "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6014,
+      "name": "Underflow",
+      "msg": "Arithmetic underflow"
+    },
+    {
+      "code": 6015,
+      "name": "DivisionByZero",
+      "msg": "Division by zero"
     }
   ],
   "types": [
@@ -533,6 +676,12 @@
           {
             "name": "is_claimed",
             "type": "bool"
+          },
+          {
+            "name": "curve_tokens",
+            "type": {
+              "option": "u64"
+            }
           },
           {
             "name": "bump",
@@ -639,6 +788,20 @@
           {
             "name": "dispute_reason",
             "type": "string"
+          },
+          {
+            "name": "curve_total_volume",
+            "type": "u64"
+          },
+          {
+            "name": "curve_graduated",
+            "type": "bool"
+          },
+          {
+            "name": "curve_graduation_time",
+            "type": {
+              "option": "i64"
+            }
           },
           {
             "name": "bump",
