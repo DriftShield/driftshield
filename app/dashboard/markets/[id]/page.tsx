@@ -6,8 +6,7 @@ import { DashboardNav } from "@/components/dashboard-nav";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useX402 } from "@/lib/hooks/useX402";
-import { useX402Bet } from "@/lib/hooks/useX402Bet";
+import { useX402BetSimplified } from "@/lib/hooks/useX402BetSimplified";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
@@ -72,8 +71,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   const router = useRouter();
   const { connected, publicKey, signTransaction } = useWallet();
   const { connection } = useConnection();
-  const { makePayment, isLoading: paymentLoading } = useX402();
-  const { placeBetWithX402, status: x402Status } = useX402Bet();
+  const { placeBetWithX402, status: x402Status, isLoading: paymentLoading } = useX402BetSimplified();
 
   const [market, setMarket] = useState<Market | null>(null);
   const [loading, setLoading] = useState(true);
