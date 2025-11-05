@@ -18,9 +18,12 @@ yarn-error.log*
 
 # env files
 .env*
+!.env.example
+!.env.production.example
 
 # vercel
 .vercel
+!vercel.json
 
 # typescript
 *.tsbuildinfo
