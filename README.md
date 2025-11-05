@@ -1,10 +1,10 @@
 # DriftShield
 
-A decentralized prediction markets platform built on Solana, enabling users to bet on real-world events with on-chain transparency and oracle-based resolution.
+A decentralized prediction markets platform built on Solana, enabling users to bet on real-world events with on-chain transparency, oracle-based resolution, and X402 USDC payments.
 
 ## Overview
 
-DriftShield allows users to create and participate in prediction markets for various events. All bets are stored on-chain using Solana blockchain, ensuring transparency, security, and immutability. The platform integrates with Polymarket for market data and uses X402 for seamless payments.
+DriftShield allows users to create and participate in prediction markets for various events. All bets are stored on-chain using Solana blockchain, ensuring transparency, security, and immutability. The platform integrates with Polymarket for market data and uses the **X402 payment protocol** with USDC for seamless, pay-per-bet transactions.
 
 ## Features
 
@@ -14,6 +14,14 @@ DriftShield allows users to create and participate in prediction markets for var
 - **Multi-Outcome Support**: Create and bet on markets with multiple possible outcomes
 - **On-Chain Storage**: All bets and market data stored on Solana blockchain
 - **Real-Time Updates**: Live market data, odds, and betting activity
+- **Bonding Curve Pricing**: Virtual liquidity with automated price discovery
+
+### Payment System
+- **X402 Protocol**: Standard HTTP 402 payment protocol for micropayments
+- **USDC Payments**: Pay $1.00 USDC per bet via PayAI facilitator
+- **Fast Verification**: Instant payment verification through facilitator
+- **x402scan Integration**: Listed on x402scan.com with UI-invokable endpoints
+- **No Gas Fees**: Facilitator sponsors transaction fees
 
 ### Smart Contract Features
 - **Oracle Resolution**: Automated market resolution using oracle data feeds
@@ -24,9 +32,9 @@ DriftShield allows users to create and participate in prediction markets for var
 
 ### User Experience
 - **Wallet Integration**: Phantom & Solflare wallet support with persistence
-- **X402 Payments**: Fast, gasless payments for betting
 - **Market Filters**: Search, sort by volume/date, active/expired filters
 - **Analytics Dashboard**: Track betting history, profits, and statistics
+- **Leaderboard**: Top performers and platform statistics
 - **Settings**: Customizable profile, notifications, and preferences
 
 ### Admin Features
@@ -37,16 +45,22 @@ DriftShield allows users to create and participate in prediction markets for var
 ## Tech Stack
 
 ### Frontend
-- **Next.js 16.0.0**: React framework with App Router
+- **Next.js 15.0**: React framework with App Router
 - **TypeScript**: Type-safe development
 - **Tailwind CSS**: Utility-first styling
 - **Solana Web3.js**: Blockchain interaction
 - **Anchor Framework**: Solana program integration
 
 ### Blockchain
-- **Solana**: Layer 1 blockchain (Devnet)
+- **Solana**: Layer 1 blockchain (Devnet/Mainnet)
 - **Anchor 0.31.1**: Rust framework for Solana programs
 - **Program ID**: `BQtqZ6H72cbMjmSzm6Bv5zKYBF9a6ZwCnbZJNYWNK1xj`
+
+### Payment Protocol
+- **X402**: Standard HTTP 402 payment protocol
+- **PayAI Facilitator**: `https://facilitator.payai.network`
+- **USDC**: Stablecoin payments on Solana
+- **x402-next**: Next.js middleware for x402
 
 ### Backend (Optional)
 - **Node.js + Express**: API server
@@ -56,7 +70,7 @@ DriftShield allows users to create and participate in prediction markets for var
 
 ### Integrations
 - **Polymarket API**: Market data and events
-- **X402**: Payment processing
+- **X402scan**: Payment discovery and UI invocation
 - **Shadow Drive**: Decentralized storage (planned)
 
 ## Getting Started
@@ -74,7 +88,7 @@ Anchor CLI (for program development)
 1. **Clone the repository**
 ```bash
 git clone https://github.com/DriftShield/driftshield.git
-cd driftshield
+cd driftshield-ui
 ```
 
 2. **Install dependencies**
@@ -89,10 +103,18 @@ cp .env.example .env.local
 
 Edit `.env.local`:
 ```env
+# Solana Configuration
 NEXT_PUBLIC_SOLANA_NETWORK=devnet
 NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
-NEXT_PUBLIC_PROGRAM_ID=BQtqZ6H72cbMjmSzm6Bv5zKYBF9a6ZwCnbZJNYWNK1xj
-NEXT_PUBLIC_X402_API_KEY=your_x402_api_key
+SOLANA_RPC_URL=https://api.devnet.solana.com
+
+# X402 Facilitator Configuration
+FACILITATOR_URL=https://facilitator.payai.network
+ADDRESS=your_solana_wallet_address
+TREASURY_WALLET=your_solana_wallet_address
+
+# Optional
+NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
 
 4. **Run the development server**
@@ -106,6 +128,48 @@ Open [http://localhost:3000](http://localhost:3000)
 ```bash
 npm run build
 npm start
+```
+
+## X402 Payment Integration
+
+### How It Works
+
+DriftShield uses the X402 payment protocol for USDC micropayments:
+
+1. User clicks "Place Bet"
+2. Middleware returns `402 Payment Required`
+3. User pays $1.00 USDC via PayAI facilitator
+4. Facilitator verifies payment instantly
+5. Bet is authorized and placed on-chain
+
+### Payment Endpoints
+
+- **Discovery**: `GET /api/x402/discovery` - x402scan metadata
+- **Place Bet**: `POST /api/x402-bet` - $1.00 USDC per bet
+- **Create Market**: `POST /api/x402/create-market` - $5.00 USDC (planned)
+- **Analytics**: `GET /api/x402/analytics` - $0.10 USDC (planned)
+
+### x402scan Integration
+
+Your endpoints are listed on [x402scan.com](https://x402scan.com) with:
+- ✅ UI-invokable endpoints
+- ✅ Schema-driven API documentation
+- ✅ Type-safe parameter validation
+- ✅ Automatic payment handling
+
+### Testing Payments
+
+```bash
+# Get devnet USDC from faucet
+# Visit: https://spl-token-faucet.com/
+
+# Test discovery endpoint
+curl http://localhost:3000/api/x402/discovery | jq
+
+# Test protected endpoint (returns 402)
+curl -X POST http://localhost:3000/api/x402-bet \
+  -H "Content-Type: application/json" \
+  -d '{"marketId":"test","outcome":"YES","betAmount":10,"userWallet":"YOUR_WALLET"}'
 ```
 
 ## Smart Contract Architecture
@@ -147,38 +211,61 @@ Market End → 24h Buffer → Oracle Resolution → 48h Dispute Period → Final
 - `GET /api/polymarket/markets` - List all markets
 - `GET /api/polymarket/markets/[id]` - Get market details
 
-### Betting
-- `POST /api/bet` - Place a bet and verify payment
-- `GET /api/idl` - Get program IDL
+### X402 Protected Endpoints
+- `GET /api/x402/discovery` - x402scan discovery metadata
+- `POST /api/x402-bet` - Place bet with X402 payment ($1.00 USDC)
 
-### Payments
-- `POST /api/x402` - Process X402 payment
+### Legacy Endpoints
+- `POST /api/bet` - Legacy bet endpoint (deprecated, use x402-bet)
+- `GET /api/idl` - Get program IDL
 
 ## Project Structure
 
 ```
-driftshield/
-├── app/                      # Next.js app router pages
-│   ├── api/                 # API routes
+driftshield-ui/
+├── app/                      # Next.js app router
+│   ├── api/
+│   │   ├── bet/             # Legacy bet endpoint
+│   │   ├── idl/             # Program IDL
+│   │   ├── polymarket/      # Polymarket integration
+│   │   ├── x402-bet/        # X402 protected bet endpoint
+│   │   └── x402/
+│   │       └── discovery/   # X402 discovery for x402scan
 │   ├── dashboard/           # Dashboard pages
 │   │   ├── markets/         # Markets list and details
 │   │   ├── bets/            # User betting history
 │   │   ├── analytics/       # Analytics dashboard
+│   │   ├── leaderboard/     # Performance leaderboard
 │   │   ├── settings/        # User settings
+│   │   ├── wallet/          # Wallet management
+│   │   ├── profile/         # User profile
 │   │   └── admin/           # Admin panel
 │   └── page.tsx             # Landing page
 ├── components/              # React components
-│   ├── ui/                  # UI components
+│   ├── ui/                  # UI components (shadcn/ui)
+│   ├── markets/             # Market components
 │   ├── dashboard-nav.tsx    # Navigation
-│   ├── wallet-button.tsx    # Wallet connection
-│   └── x402/                # Payment components
+│   └── wallet-button.tsx    # Wallet connection
 ├── lib/                     # Utilities and helpers
 │   ├── solana/              # Solana/Anchor integration
 │   ├── polymarket/          # Polymarket API client
-│   └── hooks/               # Custom React hooks
+│   ├── x402/                # X402 types and helpers
+│   ├── hooks/               # Custom React hooks
+│   │   ├── useBondingCurve.ts
+│   │   └── useX402BetSimplified.ts
+│   └── types/               # TypeScript types
+├── middleware.ts            # X402 payment middleware
 ├── backend/                 # Optional backend server
-├── scripts/                 # Deployment and utility scripts
-└── monitoring-agent/        # Market monitoring service
+├── scripts/                 # Deployment scripts
+└── monitoring-agent/        # Market monitoring
+
+Documentation:
+├── README.md                # This file
+├── X402_IMPLEMENTATION.md   # X402 implementation details
+├── X402_SCAN_INTEGRATION.md # x402scan integration guide
+├── X402_SUMMARY.md          # X402 quick reference
+├── CLEANUP_SUMMARY.md       # Code cleanup summary
+└── BONDING_CURVE_IMPLEMENTATION.md
 ```
 
 ## Market Initialization
@@ -222,6 +309,7 @@ Admins can:
 ### Supported Wallets
 - Phantom
 - Solflare
+- Other Solana-compatible wallets
 
 ### Connection Persistence
 Wallets stay connected across page refreshes using localStorage.
@@ -234,15 +322,26 @@ Wallets stay connected across page refreshes using localStorage.
 ## Payment Flow
 
 ### X402 Integration
+
+**Standard Flow:**
 1. User initiates bet
-2. X402 payment request created
-3. User approves payment in wallet
-4. Backend verifies payment on-chain
-5. Bet is recorded and confirmed
+2. Middleware intercepts and returns 402 Payment Required
+3. Client pays $1.00 USDC to facilitator
+4. Facilitator verifies and co-signs transaction
+5. Payment confirmed instantly
+6. Bet is placed on-chain
+
+**Benefits:**
+- ✅ Instant verification (no blockchain waiting)
+- ✅ Replay attack protection (nonce-based)
+- ✅ Standard protocol (x402 spec compliant)
+- ✅ Can sponsor gas fees (facilitator pays)
+- ✅ x402scan discoverable
 
 ### Fee Structure
-- Platform fee: 2% of winnings
-- X402 transaction fee: ~0.000005 SOL
+- **X402 Payment**: $1.00 USDC per bet (fixed)
+- **Platform Fee**: 2% of winnings (on-chain)
+- **Gas Fees**: Sponsored by facilitator (free for users)
 
 ## Development
 
@@ -256,21 +355,24 @@ npm run dev
 npm run build
 ```
 
-### Run Tests
-```bash
-npm test
-```
-
 ### Lint Code
 ```bash
 npm run lint
+```
+
+### Type Check
+```bash
+npm run type-check
 ```
 
 ## Deployment
 
 ### Vercel (Recommended for Frontend)
 1. Connect your GitHub repository
-2. Set environment variables
+2. Set environment variables:
+   - `FACILITATOR_URL`
+   - `ADDRESS` (treasury wallet)
+   - `NEXT_PUBLIC_SOLANA_RPC_URL`
 3. Deploy automatically on push
 
 ### Custom Server
@@ -281,7 +383,7 @@ npm start
 
 ### Solana Program Deployment
 ```bash
-cd driftshield-program/prediction_bets
+cd driftshield-programs/prediction_bets
 anchor build
 anchor deploy --provider.cluster devnet
 anchor idl init --filepath target/idl/prediction_bets.json <program-id>
@@ -292,10 +394,13 @@ anchor idl init --filepath target/idl/prediction_bets.json <program-id>
 ### Required
 - `NEXT_PUBLIC_SOLANA_NETWORK` - Solana network (devnet/mainnet-beta)
 - `NEXT_PUBLIC_SOLANA_RPC_URL` - RPC endpoint
-- `NEXT_PUBLIC_PROGRAM_ID` - Deployed program ID
+- `SOLANA_RPC_URL` - Server-side RPC endpoint
+- `FACILITATOR_URL` - X402 facilitator URL
+- `ADDRESS` - Treasury wallet address
 
 ### Optional
-- `NEXT_PUBLIC_X402_API_KEY` - X402 API key
+- `TREASURY_WALLET` - Fallback treasury wallet
+- `NEXT_PUBLIC_API_URL` - Backend API URL
 - `DATABASE_URL` - PostgreSQL connection string
 - `REDIS_URL` - Redis connection string
 
@@ -309,12 +414,25 @@ anchor idl init --filepath target/idl/prediction_bets.json <program-id>
 ### Transaction Failing
 - Check SOL balance for fees
 - Verify market hasn't ended
-- Ensure minimum bet amount (0.01 SOL)
+- Ensure minimum bet amount
+
+### Payment Required Error
+- Check user has USDC in wallet
+- Verify FACILITATOR_URL is correct
+- Ensure middleware is running
 
 ### Markets Not Loading
 - Check Polymarket API is accessible
 - Verify program ID is correct
 - Check RPC endpoint is responding
+
+## Documentation
+
+For detailed information, see:
+- [X402 Implementation](./X402_IMPLEMENTATION.md) - Technical implementation
+- [x402scan Integration](./X402_SCAN_INTEGRATION.md) - Discovery and listing
+- [X402 Summary](./X402_SUMMARY.md) - Quick reference
+- [Cleanup Summary](./CLEANUP_SUMMARY.md) - Code cleanup details
 
 ## Contributing
 
@@ -344,20 +462,24 @@ Report security vulnerabilities via GitHub Issues or Twitter DM
 
 ### Phase 1 (Completed)
 - ✅ Core betting functionality
-- ✅ Oracle resolution
-- ✅ Dispute mechanism
+- ✅ Oracle resolution with disputes
 - ✅ Admin panel
 - ✅ Multi-outcome markets (2-10 outcomes)
+- ✅ X402 payment protocol
+- ✅ x402scan integration
+- ✅ Bonding curve pricing
+- ✅ Analytics & leaderboard
 
 ### Phase 2 (In Progress)
 - 🔄 Liquidity pools (AMM-style)
-- 🔄 Social features (leaderboards, profiles)
+- 🔄 Advanced analytics
+- 🔄 Social features
 
 ### Phase 3 (Planned)
 - ⏳ Mobile app
-- ⏳ Advanced analytics
-- ⏳ Market creation by users
+- ⏳ User-created markets
 - ⏳ Cross-chain support
+- ⏳ Custom facilitator option
 
 ## License
 
@@ -367,13 +489,16 @@ MIT License - see LICENSE file for details
 
 - **Website**: https://www.driftshield.xyz/
 - **Twitter**: https://x.com/DriftShield402
+- **x402scan**: https://x402scan.com (search for DriftShield)
+- **PayAI Docs**: https://docs.payai.network
 
 ## Support
 
 For questions and support:
 - Twitter: https://x.com/DriftShield402
 - GitHub Issues: https://github.com/DriftShield/driftshield/issues
+- Documentation: See `/docs` folder
 
 ---
 
-Built with ❤️ on Solana
+Built with ❤️ on Solana • Powered by X402
