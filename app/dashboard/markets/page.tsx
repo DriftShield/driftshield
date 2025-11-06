@@ -13,7 +13,6 @@ import { getMarketPDA, PROGRAM_ID } from "@/lib/solana/prediction-bets";
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
 import IDL from '@/lib/solana/prediction_bets_idl.json';
 import { isAdmin } from "@/lib/constants/admin";
-import { fetchAllPolymarketMarkets, fetchPolymarketEvents } from "@/lib/api/polymarket";
 import { Market, BinaryMarket, MultiOutcomeMarket, isBinaryMarket, isMultiOutcomeMarket } from "@/lib/types/market";
 import { MultiOutcomeCard } from "@/components/markets/multi-outcome-card";
 
@@ -220,7 +219,7 @@ export default function MarketsPage() {
             <div>
               <h1 className="text-4xl font-bold">Prediction Markets</h1>
               <p className="text-muted-foreground mt-1">
-                Binary & Multi-Outcome Markets • Powered by Solana & Polymarket
+                Binary & Multi-Outcome Markets • Fully On-Chain on Solana
               </p>
             </div>
             {userIsAdmin && (
@@ -350,7 +349,7 @@ export default function MarketsPage() {
             <Card className="glass p-4">
               <p className="text-sm text-muted-foreground text-center">
                 Showing {markets.length} markets ({binaryCount} binary, {multiCount} multi-outcome) •
-                Powered by Solana & Polymarket •
+                Fully On-Chain on Solana •
                 X402 payments enabled
               </p>
             </Card>

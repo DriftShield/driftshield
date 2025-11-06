@@ -4,15 +4,15 @@ A decentralized prediction markets platform built on Solana, enabling users to b
 
 ## Overview
 
-DriftShield allows users to create and participate in prediction markets for various events. All bets are stored on-chain using Solana blockchain, ensuring transparency, security, and immutability. The platform integrates with Polymarket for market data and uses the **X402 payment protocol** with USDC for seamless, pay-per-bet transactions.
+DriftShield allows users to create and participate in prediction markets for various events. All markets and bets are fully stored on-chain using Solana blockchain, ensuring transparency, security, and immutability. The platform uses the **X402 payment protocol** with USDC for seamless, pay-per-bet transactions.
 
 ## Features
 
 ### Core Functionality
 - **Prediction Markets**: Bet on binary (Yes/No) and multi-outcome markets (2-10 choices)
-- **200+ Markets**: Integration with Polymarket API for diverse betting options
+- **Fully On-Chain**: All markets and bets stored on Solana blockchain
 - **Multi-Outcome Support**: Create and bet on markets with multiple possible outcomes
-- **On-Chain Storage**: All bets and market data stored on Solana blockchain
+- **On-Chain Market Creation**: Admins can create markets directly on-chain
 - **Real-Time Updates**: Live market data, odds, and betting activity
 - **Bonding Curve Pricing**: Virtual liquidity with automated price discovery
 
@@ -109,9 +109,9 @@ DriftShield allows users to create and participate in prediction markets for var
 - **Bull**: Job queue for background tasks
 
 ### Integrations
-- **Polymarket API**: Market data and events
 - **X402scan**: Payment discovery and UI invocation
 - **Shadow Drive**: Decentralized storage (planned)
+- **Oracle Networks**: For automated market resolution (planned)
 
 ## Getting Started
 

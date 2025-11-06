@@ -671,7 +671,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   const yesPrice = parseFloat(market.outcomePrices[0]) || 0.5;
   const noPrice = parseFloat(market.outcomePrices[1]) || 0.5;
 
-  // Use on-chain end date if available, otherwise use Polymarket's date
+  // Use on-chain end date
   const endDate = onChainEndDate || new Date(market.endDate);
   const timeUntilEndMs = endDate.getTime() - Date.now();
   const daysUntilEnd = Math.ceil(timeUntilEndMs / (1000 * 60 * 60 * 24));
