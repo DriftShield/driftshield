@@ -156,12 +156,42 @@ export default function MarketsPage() {
 
       console.log(`Successfully parsed ${onChainMarkets.length} on-chain markets`);
 
+      // Filter out markets with problematic IDs (legacy test markets)
+      // Keep only markets created after a certain date or with specific patterns
+      const filteredMarkets = onChainMarkets.filter(market => {
+        // Keep markets with numeric IDs (new format)
+        if (/^\d+$/.test(market.id)) {
+          return true;
+        }
+
+        // Keep markets with these common patterns (if needed)
+        const keepPatterns = [
+          'btc-100k-2025',
+          'eth-5k-2025',
+          'sol-500-2025',
+          'us-election-2024',
+          'next-fed-rate',
+          'spacex-mars-2026',
+          'agi-timeline',
+          'ai-company-leader',
+        ];
+
+        if (keepPatterns.includes(market.id)) {
+          return true;
+        }
+
+        // Filter out all other legacy markets
+        return false;
+      });
+
+      console.log(`Showing ${filteredMarkets.length} markets (filtered out ${onChainMarkets.length - filteredMarkets.length} legacy markets)`);
+
       // Log market IDs for debugging
-      if (onChainMarkets.length > 0) {
-        console.log('On-chain market IDs:', onChainMarkets.map(m => m.id).join(', '));
+      if (filteredMarkets.length > 0) {
+        console.log('Displayed market IDs:', filteredMarkets.map(m => m.id).join(', '));
       }
 
-      return onChainMarkets;
+      return filteredMarkets;
     } catch (error) {
       console.error('Error fetching on-chain markets:', error);
       return [];
