@@ -9,9 +9,16 @@ export interface BetPaymentStatus {
   authorizationId: string | null;
 }
 
-// USDC mint address on Solana
-const USDC_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+// USDC mint addresses by network
+const USDC_MINT_MAINNET = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+const USDC_MINT_DEVNET = new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'); // Devnet USDC
 const USDC_DECIMALS = 6;
+
+// Determine which USDC mint to use based on network
+const getUSDCMint = () => {
+  const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet';
+  return network === 'mainnet-beta' ? USDC_MINT_MAINNET : USDC_MINT_DEVNET;
+};
 
 /**
  * Simplified hook for X402-powered betting
@@ -42,47 +49,98 @@ export function useX402BetSimplified() {
     }
 
     const recipient = new PublicKey(recipientAddress);
+    const USDC_MINT = getUSDCMint();
 
-    // Get token accounts
-    const senderTokenAccount = await getAssociatedTokenAddress(
-      USDC_MINT,
-      publicKey
-    );
+    try {
+      // Get token accounts
+      const senderTokenAccount = await getAssociatedTokenAddress(
+        USDC_MINT,
+        publicKey
+      );
 
-    const recipientTokenAccount = await getAssociatedTokenAddress(
-      USDC_MINT,
-      recipient
-    );
+      const recipientTokenAccount = await getAssociatedTokenAddress(
+        USDC_MINT,
+        recipient
+      );
 
-    // Convert USDC amount to smallest unit
-    const amount = Math.floor(amountUSDC * Math.pow(10, USDC_DECIMALS));
+      // Check if sender has USDC token account
+      const senderAccountInfo = await connection.getAccountInfo(senderTokenAccount);
+      if (!senderAccountInfo) {
+        const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet';
+        const instructions = network === 'mainnet-beta'
+          ? `Run: spl-token create-account ${USDC_MINT_MAINNET.toBase58()}`
+          : `Run these commands:
+1. solana config set --url devnet
+2. solana airdrop 2 (for transaction fees)
+3. spl-token create-account ${USDC_MINT_DEVNET.toBase58()}
+4. Get USDC from: https://spl-token-faucet.com/`;
 
-    // Create transfer instruction
-    const transaction = new Transaction().add(
-      createTransferInstruction(
-        senderTokenAccount,
-        recipientTokenAccount,
-        publicKey,
-        amount,
-        [],
-        TOKEN_PROGRAM_ID
-      )
-    );
+        throw new Error(
+          `USDC token account not found. Please create a USDC token account first.\n\n${instructions}`
+        );
+      }
 
-    // Get recent blockhash
-    transaction.recentBlockhash = (
-      await connection.getLatestBlockhash()
-    ).blockhash;
-    transaction.feePayer = publicKey;
+      // Check USDC balance
+      const senderBalance = await connection.getTokenAccountBalance(senderTokenAccount);
+      const currentBalance = parseFloat(senderBalance.value.uiAmount || '0');
 
-    // Sign and send transaction
-    const signed = await signTransaction(transaction);
-    const signature = await connection.sendRawTransaction(signed.serialize());
+      if (currentBalance < amountUSDC) {
+        const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet';
+        const faucetInfo = network === 'mainnet-beta'
+          ? 'You need to purchase USDC on mainnet'
+          : 'Get devnet USDC from: https://spl-token-faucet.com/';
 
-    // Wait for confirmation
-    await connection.confirmTransaction(signature, 'confirmed');
+        throw new Error(
+          `Insufficient USDC balance. You have ${currentBalance} USDC but need ${amountUSDC} USDC.\n\n${faucetInfo}`
+        );
+      }
 
-    return signature;
+      // Convert USDC amount to smallest unit
+      const amount = Math.floor(amountUSDC * Math.pow(10, USDC_DECIMALS));
+
+      // Create transfer instruction
+      const transaction = new Transaction().add(
+        createTransferInstruction(
+          senderTokenAccount,
+          recipientTokenAccount,
+          publicKey,
+          amount,
+          [],
+          TOKEN_PROGRAM_ID
+        )
+      );
+
+      // Get recent blockhash
+      transaction.recentBlockhash = (
+        await connection.getLatestBlockhash()
+      ).blockhash;
+      transaction.feePayer = publicKey;
+
+      // Sign and send transaction
+      const signed = await signTransaction(transaction);
+      const signature = await connection.sendRawTransaction(signed.serialize());
+
+      // Wait for confirmation
+      await connection.confirmTransaction(signature, 'confirmed');
+
+      return signature;
+    } catch (error: any) {
+      // Provide helpful error messages
+      if (error.message?.includes('InvalidAccountData')) {
+        const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet';
+        const usdcMint = network === 'mainnet-beta' ? USDC_MINT_MAINNET : USDC_MINT_DEVNET;
+
+        throw new Error(
+          `USDC token account not set up correctly.\n\n` +
+          `Please run these commands:\n` +
+          `1. solana config set --url ${network}\n` +
+          `2. solana airdrop 2 (for fees)\n` +
+          `3. spl-token create-account ${usdcMint.toBase58()}\n` +
+          `4. Get USDC: https://spl-token-faucet.com/`
+        );
+      }
+      throw error;
+    }
   };
 
   /**

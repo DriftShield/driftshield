@@ -82,6 +82,11 @@ export default function MarketsPage() {
       // Try to deserialize each account
       for (const { pubkey, account } of programAccounts) {
         try {
+          // Skip if account data is too small (less than 8 bytes for discriminator)
+          if (account.data.length < 8) {
+            continue;
+          }
+
           // Try to decode as Market account using BorshAccountsCoder directly
           const marketData = coder.decode('Market', account.data) as any;
 
