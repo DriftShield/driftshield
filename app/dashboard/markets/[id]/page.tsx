@@ -142,7 +142,10 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
         const accountInfo = await connection.getAccountInfo(marketPDA);
         if (!accountInfo) {
-          setError('Market not found on-chain');
+          setError('Market not found on-chain. Redirecting to markets list...');
+          setTimeout(() => {
+            router.push('/dashboard/markets');
+          }, 2000);
           return;
         }
 
@@ -184,7 +187,10 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
         });
       } catch (err) {
         console.error('Error fetching market:', err);
-        setError('Market not found on-chain');
+        setError('Market not found on-chain. Redirecting to markets list...');
+        setTimeout(() => {
+          router.push('/dashboard/markets');
+        }, 2000);
       }
     } catch (err) {
       console.error('Error in fetchMarket:', err);
