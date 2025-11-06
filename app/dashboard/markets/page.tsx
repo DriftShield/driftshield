@@ -154,7 +154,13 @@ export default function MarketsPage() {
         }
       }
 
-      console.log(`Successfully parsed ${onChainMarkets.length} markets`);
+      console.log(`Successfully parsed ${onChainMarkets.length} on-chain markets`);
+
+      // Log market IDs for debugging
+      if (onChainMarkets.length > 0) {
+        console.log('On-chain market IDs:', onChainMarkets.map(m => m.id).join(', '));
+      }
+
       return onChainMarkets;
     } catch (error) {
       console.error('Error fetching on-chain markets:', error);
