@@ -345,8 +345,18 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
       // Find outcome index in the market outcomes array
       const outcomeIndex = market.outcomes.indexOf(outcome);
       if (outcomeIndex === -1) {
-        throw new Error('Invalid outcome');
+        console.error('[Bet Flow] Outcome not found in market:', {
+          outcome,
+          availableOutcomes: market.outcomes,
+        });
+        throw new Error(`Invalid outcome "${outcome}". Available outcomes: ${market.outcomes.join(', ')}`);
       }
+
+      console.log('[Bet Flow] Outcome validated:', {
+        outcome,
+        outcomeIndex,
+        totalOutcomes: market.outcomes.length,
+      });
 
       // Handle instant trading mode with bonding curve
       if (tradingMode === 'instant' && curve) {
@@ -1182,13 +1192,13 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                   <div className="grid md:grid-cols-2 gap-4">
                     {/* YES Button */}
                     <button
-                      onClick={() => handlePlaceBet('YES')}
+                      onClick={() => handlePlaceBet(market.outcomes[0] || 'YES')}
                       disabled={placingBet || isExpired}
                       className="group relative p-6 rounded-xl border-2 border-secondary/50 hover:border-secondary bg-secondary/10 hover:bg-secondary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-xl font-bold text-secondary">YES</span>
+                          <span className="text-xl font-bold text-secondary">{market.outcomes[0] || 'YES'}</span>
                           <span className="text-3xl font-bold text-secondary">
                             {(yesPrice * 100).toFixed(0)}¢
                           </span>
@@ -1201,7 +1211,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                           <span>Bet {betAmount} SOL</span>
                         </div>
                       </div>
-                      {placingBet && selectedOutcome === 'YES' && (
+                      {placingBet && selectedOutcome === (market.outcomes[0] || 'YES') && (
                         <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-xl">
                           <Loader2 className="w-6 h-6 animate-spin text-secondary" />
                         </div>
@@ -1210,13 +1220,13 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
                     {/* NO Button */}
                     <button
-                      onClick={() => handlePlaceBet('NO')}
+                      onClick={() => handlePlaceBet(market.outcomes[1] || 'NO')}
                       disabled={placingBet || isExpired}
                       className="group relative p-6 rounded-xl border-2 border-accent/50 hover:border-accent bg-accent/10 hover:bg-accent/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-xl font-bold text-accent">NO</span>
+                          <span className="text-xl font-bold text-accent">{market.outcomes[1] || 'NO'}</span>
                           <span className="text-3xl font-bold text-accent">
                             {(noPrice * 100).toFixed(0)}¢
                           </span>
@@ -1229,7 +1239,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                           <span>Bet {betAmount} SOL</span>
                         </div>
                       </div>
-                      {placingBet && selectedOutcome === 'NO' && (
+                      {placingBet && selectedOutcome === (market.outcomes[1] || 'NO') && (
                         <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-xl">
                           <Loader2 className="w-6 h-6 animate-spin text-accent" />
                         </div>
