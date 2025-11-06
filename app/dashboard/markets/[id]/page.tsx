@@ -151,12 +151,25 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
         const marketData = coder.decode('Market', accountInfo.data) as any;
 
+        console.log('[Market Detail] Raw market data:', {
+          marketId: marketData.market_id,
+          title: marketData.title,
+          numOutcomes: marketData.num_outcomes,
+          outcomeLabels: marketData.outcome_labels,
+        });
+
         // Access fields using snake_case
         const endTimestamp = marketData.end_timestamp.toNumber();
         const endDate = new Date(endTimestamp * 1000);
         const numOutcomes = marketData.num_outcomes;
         const outcomeLabels = marketData.outcome_labels.slice(0, numOutcomes);
         const outcomeAmounts = marketData.outcome_amounts.slice(0, numOutcomes);
+
+        console.log('[Market Detail] Processed data:', {
+          numOutcomes,
+          outcomeLabels,
+          endDate: endDate.toISOString(),
+        });
 
         // Calculate total volume and probabilities
         let totalVolume = 0;
@@ -172,7 +185,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
           probabilities.push(prob);
         }
 
-        setMarket({
+        const marketObj = {
           id: marketId,
           question: marketData.title,
           description: 'On-chain prediction market powered by Solana',
@@ -184,7 +197,10 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
           endDate: endDate.toISOString(),
           active: endDate.getTime() > Date.now(),
           closed: endDate.getTime() <= Date.now(),
-        });
+        };
+
+        console.log('[Market Detail] Setting market state:', marketObj);
+        setMarket(marketObj);
       } catch (err) {
         console.error('Error fetching market:', err);
         setError('Market not found on-chain. Redirecting to markets list...');
