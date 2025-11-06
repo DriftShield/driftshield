@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createTransferInstruction } from '@solana/spl-token';
+import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createTransferInstruction, createAssociatedTokenAccountInstruction } from '@solana/spl-token';
 
 export interface BetPaymentStatus {
   isProcessing: boolean;
@@ -98,8 +98,25 @@ export function useX402BetSimplified() {
       // Convert USDC amount to smallest unit
       const amount = Math.floor(amountUSDC * Math.pow(10, USDC_DECIMALS));
 
-      // Create transfer instruction
-      const transaction = new Transaction().add(
+      // Create transaction
+      const transaction = new Transaction();
+
+      // Check if recipient token account exists, create it if not
+      const recipientAccountInfo = await connection.getAccountInfo(recipientTokenAccount);
+      if (!recipientAccountInfo) {
+        console.log('[X402] Creating recipient USDC token account...');
+        transaction.add(
+          createAssociatedTokenAccountInstruction(
+            publicKey, // payer
+            recipientTokenAccount, // associated token account
+            recipient, // owner
+            USDC_MINT // mint
+          )
+        );
+      }
+
+      // Add transfer instruction
+      transaction.add(
         createTransferInstruction(
           senderTokenAccount,
           recipientTokenAccount,
