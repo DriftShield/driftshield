@@ -401,37 +401,37 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
       // Traditional X402 + on-chain flow
       console.log('[Bet Flow] Starting X402 bet placement...');
 
+      if (!publicKey) {
+        throw new Error('Wallet not connected');
+      }
+
       // Use X402 protocol for bet placement
       const result = await placeBetWithX402(
         market.id,
         outcome as 'YES' | 'NO',
         betAmount,
-        async (x402Signature) => {
-          // This callback is called after X402 payment is verified
-          console.log('[Bet Flow] X402 payment verified, placing bet on-chain...');
-
-          // Place bet on-chain (now authorized by X402 payment)
-          const betSignature = await placeBetOnChain(
-            connection,
-            { publicKey, signTransaction, connected } as any,
-            market.id,
-            outcomeIndex,
-            betAmount,
-            market.endDate,
-            market.question,
-            market.outcomes // Pass market outcomes
-          );
-
-          console.log('[Bet Flow] Bet placed on-chain:', betSignature);
-          return betSignature;
-        }
+        publicKey.toBase58() // Pass wallet address as string
       );
 
       if (!result.success) {
         throw new Error(result.error || 'X402 bet failed');
       }
 
-      const betSignature = result.betSignature!;
+      console.log('[Bet Flow] X402 payment verified, placing bet on-chain...');
+
+      // Place bet on-chain (now authorized by X402 payment)
+      const betSignature = await placeBetOnChain(
+        connection,
+        { publicKey, signTransaction, connected } as any,
+        market.id,
+        outcomeIndex,
+        betAmount,
+        market.endDate,
+        market.question,
+        market.outcomes // Pass market outcomes
+      );
+
+      console.log('[Bet Flow] Bet placed on-chain:', betSignature);
 
       // Create bet record
       const newBet: Bet = {

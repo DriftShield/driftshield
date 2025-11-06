@@ -197,6 +197,15 @@ export function useX402BetSimplified() {
         }),
       });
 
+      console.log('[X402] Initial response status:', initialResponse.status);
+
+      // Log error details if not 402
+      if (initialResponse.status !== 402 && !initialResponse.ok) {
+        const errorData = await initialResponse.json();
+        console.error('[X402] Initial request failed:', errorData);
+        throw new Error(errorData.error || `Request failed with status ${initialResponse.status}`);
+      }
+
       // If 402, handle payment
       if (initialResponse.status === 402) {
         console.log('[X402] Payment required, processing payment...');
