@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { X402PaymentHandler } from 'x402-solana/server';
 
+const network = (process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet') as 'solana' | 'solana-devnet';
+const treasuryAddress = process.env.ADDRESS || process.env.TREASURY_WALLET || '53syaxqneCrGxn516N36uj3m6Aa1ySLrj2hTiqqtFYPp';
 const facilitatorUrl = process.env.FACILITATOR_URL || 'https://facilitator.payai.network';
-const payTo = process.env.ADDRESS || process.env.TREASURY_WALLET || '53syaxqneCrGxn516N36uj3m6Aa1ySLrj2hTiqqtFYPp';
+const usdcMint = network === 'solana'
+  ? 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' // Mainnet USDC
+  : 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr'; // Devnet USDC
+
+// Create x402 payment handler
+const x402 = new X402PaymentHandler({
+  network: network === 'devnet' ? 'solana-devnet' : 'solana',
+  treasuryAddress,
+  facilitatorUrl,
+});
 
 // Store bet authorizations after payment (use Redis/DB in production)
 const betAuthorizations = new Map<string, {
@@ -46,7 +58,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // At this point, payment has been verified by x402 middleware
+    // Extract payment header
+    const paymentHeader = x402.extractPayment(request.headers);
+
+    // Create payment requirements
+    const paymentRequirements = await x402.createPaymentRequirements({
+      price: {
+        amount: "1000000", // $1.00 USDC (6 decimals)
+        asset: {
+          address: usdcMint
+        }
+      },
+      network: network === 'devnet' ? 'solana-devnet' : 'solana',
+      config: {
+        description: 'Place a bet on prediction market',
+        resource: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://driftshield.xyz'}/api/x402-bet`,
+      }
+    });
+
+    if (!paymentHeader) {
+      // Return 402 with payment requirements
+      const response = x402.create402Response(paymentRequirements);
+      return NextResponse.json(response.body, { status: response.status });
+    }
+
+    // Verify payment
+    const verified = await x402.verifyPayment(paymentHeader, paymentRequirements);
+    if (!verified) {
+      return NextResponse.json({ error: 'Invalid payment' }, { status: 402 });
+    }
+
+    console.log('[X402 Bet] Payment verified!', paymentHeader);
+
+    // At this point, payment has been verified
     // Create bet authorization
     const authorizationId = `${userWallet}-${marketId}-${Date.now()}`;
 
@@ -66,12 +110,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log('[X402 Bet] Payment verified via facilitator!', {
+    console.log('[X402 Bet] Payment verified!', {
       marketId,
       outcome,
       betAmount: betAmountNum,
       userWallet,
     });
+
+    // Settle payment with facilitator
+    await x402.settlePayment(paymentHeader, paymentRequirements);
 
     // Return success with bet authorization
     return NextResponse.json({
