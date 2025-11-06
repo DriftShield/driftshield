@@ -1,364 +1,316 @@
-"use client"
+'use client';
 
-import { DashboardNav } from "@/components/dashboard-nav"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Trophy, TrendingUp, Medal, Crown, Award, Activity } from "lucide-react"
-import { useWallet, useConnection } from "@solana/wallet-adapter-react"
-import { useEffect, useState } from "react"
-import { PROGRAM_ID } from "@/lib/solana/prediction-bets"
-import { AnchorProvider, Program } from '@coral-xyz/anchor'
-import IDL from '@/lib/solana/prediction_bets_idl.json'
-
-interface TraderStats {
-  address: string
-  totalBets: number
-  totalStaked: number
-  rank: number
-}
-
-interface MarketStats {
-  marketId: string
-  title: string
-  totalVolume: number
-  totalBets: number
-  rank: number
-}
+import { useEffect, useState } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Trophy,
+  TrendingUp,
+  Users,
+  DollarSign,
+  Award,
+  Crown,
+  Star,
+  ExternalLink,
+  UserPlus,
+  UserCheck,
+} from 'lucide-react';
+import { getLeaderboard, isFollowing, followTrader, unfollowTrader } from '@/lib/social/service';
+import { LeaderboardEntry } from '@/lib/social/types';
+import Link from 'next/link';
 
 export default function LeaderboardPage() {
-  const { publicKey } = useWallet()
-  const { connection } = useConnection()
-  const [topTraders, setTopTraders] = useState<TraderStats[]>([])
-  const [topMarkets, setTopMarkets] = useState<MarketStats[]>([])
-  const [loading, setLoading] = useState(true)
-  const [yourRank, setYourRank] = useState<number | null>(null)
-  const [yourStats, setYourStats] = useState({ bets: 0, staked: 0 })
+  const { publicKey } = useWallet();
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [metric, setMetric] = useState<'pnl' | 'roi' | 'win_rate' | 'volume'>('pnl');
+  const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'all_time'>('all_time');
+  const [followingMap, setFollowingMap] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchLeaderboardData()
-  }, [publicKey])
+    loadLeaderboard();
+  }, [metric, period]);
 
-  const fetchLeaderboardData = async () => {
-    setLoading(true)
-    try {
-      // Create a dummy wallet for reading
-      const dummyWallet = {
-        publicKey: PROGRAM_ID,
-        signTransaction: async (tx: any) => tx,
-        signAllTransactions: async (txs: any[]) => txs,
-      }
+  const loadLeaderboard = () => {
+    setLoading(true);
+    const data = getLeaderboard(period, metric, 100);
+    setLeaderboard(data);
+    setLoading(false);
+  };
 
-      const provider = new AnchorProvider(connection, dummyWallet as any, { commitment: 'confirmed' })
-      const program = new Program(IDL as any, provider)
+  const handleFollowToggle = (traderId: string) => {
+    if (!publicKey) return;
 
-      // Fetch all bet accounts
-      const betAccounts = await program.account.bet.all()
+    const userId = publicKey.toString();
+    const isCurrentlyFollowing = followingMap.has(traderId);
 
-      // Fetch all market accounts for market data
-      const marketAccounts = await program.account.market.all()
-
-      // Aggregate trader stats
-      const traderMap = new Map<string, { bets: number, staked: number }>()
-      const marketMap = new Map<string, { title: string, volume: number, bets: number }>()
-
-      // Process bets
-      betAccounts.forEach((bet: any) => {
-        const betData = bet.account
-        const userKey = betData.user.toString()
-        const marketId = betData.marketId
-        const amount = betData.amount.toNumber() / 1e9 // Convert lamports to SOL
-
-        // Aggregate trader stats
-        if (!traderMap.has(userKey)) {
-          traderMap.set(userKey, { bets: 0, staked: 0 })
-        }
-        const stats = traderMap.get(userKey)!
-        stats.bets += 1
-        stats.staked += amount
-
-        // Aggregate market stats
-        if (!marketMap.has(marketId)) {
-          marketMap.set(marketId, { title: '', volume: 0, bets: 0 })
-        }
-        const marketStats = marketMap.get(marketId)!
-        marketStats.volume += amount
-        marketStats.bets += 1
-      })
-
-      // Add market titles
-      marketAccounts.forEach((market: any) => {
-        const marketData = market.account
-        const marketId = marketData.marketId
-        if (marketMap.has(marketId)) {
-          marketMap.get(marketId)!.title = marketData.title
-        }
-      })
-
-      // Convert traders to sorted array
-      const sortedTraders = Array.from(traderMap.entries())
-        .map(([address, stats]) => ({
-          address,
-          totalBets: stats.bets,
-          totalStaked: stats.staked,
-        }))
-        .sort((a, b) => b.totalStaked - a.totalStaked) // Sort by total staked
-
-      const traders: TraderStats[] = sortedTraders
-        .slice(0, 20)
-        .map((trader, index) => ({
-          address: trader.address.slice(0, 8) + '...' + trader.address.slice(-4),
-          totalBets: trader.totalBets,
-          totalStaked: parseFloat(trader.totalStaked.toFixed(4)),
-          rank: index + 1
-        }))
-
-      setTopTraders(traders)
-
-      // Convert markets to sorted array
-      const sortedMarkets = Array.from(marketMap.entries())
-        .map(([marketId, stats]) => ({
-          marketId,
-          title: stats.title || 'Unknown Market',
-          totalVolume: stats.volume,
-          totalBets: stats.bets,
-        }))
-        .sort((a, b) => b.totalVolume - a.totalVolume)
-
-      const markets: MarketStats[] = sortedMarkets
-        .slice(0, 10)
-        .map((market, index) => ({
-          marketId: market.marketId.slice(0, 8) + '...',
-          title: market.title,
-          totalVolume: parseFloat(market.totalVolume.toFixed(4)),
-          totalBets: market.totalBets,
-          rank: index + 1
-        }))
-
-      setTopMarkets(markets)
-
-      // Find user rank if connected
-      if (publicKey) {
-        const userKey = publicKey.toString()
-        const userIndex = sortedTraders.findIndex(t => t.address === userKey)
-        if (userIndex !== -1) {
-          setYourRank(userIndex + 1)
-          setYourStats({
-            bets: sortedTraders[userIndex].totalBets,
-            staked: parseFloat(sortedTraders[userIndex].totalStaked.toFixed(4))
-          })
-        }
-      }
-
-    } catch (error) {
-      // Silently handle errors
-    } finally {
-      setLoading(false)
+    if (isCurrentlyFollowing) {
+      unfollowTrader(userId, traderId);
+      setFollowingMap(prev => {
+        const next = new Set(prev);
+        next.delete(traderId);
+        return next;
+      });
+    } else {
+      followTrader(userId, traderId);
+      setFollowingMap(prev => new Set(prev).add(traderId));
     }
-  }
-  return (
-    <div className="min-h-screen bg-background">
-      <DashboardNav />
+  };
 
-      <div className="lg:pl-64">
-        <div className="container mx-auto max-w-7xl px-4 py-8 space-y-6">
-          {/* Header */}
+  const getMetricValue = (entry: LeaderboardEntry) => {
+    switch (metric) {
+      case 'pnl':
+        return entry.stats.totalPnL >= 0
+          ? `+$${entry.stats.totalPnL.toFixed(2)}`
+          : `-$${Math.abs(entry.stats.totalPnL).toFixed(2)}`;
+      case 'roi':
+        return `${entry.stats.roi >= 0 ? '+' : ''}${entry.stats.roi.toFixed(1)}%`;
+      case 'win_rate':
+        return `${entry.stats.winRate.toFixed(1)}%`;
+      case 'volume':
+        return `$${entry.stats.volumeTraded.toLocaleString()}`;
+      default:
+        return '-';
+    }
+  };
+
+  const getRankIcon = (rank: number) => {
+    if (rank === 1) return <Crown className="h-5 w-5 text-yellow-500" />;
+    if (rank === 2) return <Award className="h-5 w-5 text-gray-400" />;
+    if (rank === 3) return <Award className="h-5 w-5 text-orange-600" />;
+    return <span className="text-muted-foreground font-mono w-8 text-center">#{rank}</span>;
+  };
+
+  const getBadgeColor = (badge: string) => {
+    const colors: Record<string, string> = {
+      top_10: 'bg-yellow-500/20 text-yellow-500',
+      top_50: 'bg-blue-500/20 text-blue-500',
+      verified: 'bg-green-500/20 text-green-500',
+      whale: 'bg-purple-500/20 text-purple-500',
+      consistent: 'bg-orange-500/20 text-orange-500',
+      high_roi: 'bg-pink-500/20 text-pink-500',
+    };
+    return colors[badge] || 'bg-gray-500/20';
+  };
+
+  return (
+    <div className="container mx-auto py-8 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Trophy className="h-8 w-8" />
+            Leaderboard
+          </h1>
+          <p className="text-muted-foreground">Top performing traders on DriftShield</p>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Top Trader</CardTitle>
+            <Crown className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            {leaderboard[0] ? (
+              <>
+                <div className="text-2xl font-bold truncate">{leaderboard[0].displayName}</div>
+                <p className="text-xs text-muted-foreground">
+                  {getMetricValue(leaderboard[0])}
+                </p>
+              </>
+            ) : (
+              <div className="text-sm text-muted-foreground">No data yet</div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Traders</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{leaderboard.length}</div>
+            <p className="text-xs text-muted-foreground">Public profiles</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Avg Win Rate</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {leaderboard.length > 0
+                ? (leaderboard.reduce((sum, e) => sum + e.stats.winRate, 0) / leaderboard.length).toFixed(1)
+                : 0}%
+            </div>
+            <p className="text-xs text-muted-foreground">Across all traders</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Volume</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              ${leaderboard.reduce((sum, e) => sum + e.stats.volumeTraded, 0).toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">Combined volume</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Leaderboard */}
+      <Card>
+        <CardHeader>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-4xl font-bold">Leaderboard</h1>
-              <p className="text-muted-foreground mt-1">Top traders on DriftShield prediction markets</p>
+              <CardTitle>Rankings</CardTitle>
+              <CardDescription>Sorted by {metric.replace('_', ' ')}</CardDescription>
             </div>
-            <Button variant="outline" className="gap-2 bg-transparent" onClick={fetchLeaderboardData}>
-              <Trophy className="w-4 h-4" />
-              Refresh
-            </Button>
-          </div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+              <select
+                value={metric}
+                onChange={(e) => setMetric(e.target.value as any)}
+                className="px-3 py-2 rounded-md border bg-background text-sm"
+              >
+                <option value="pnl">Total P&L</option>
+                <option value="roi">ROI %</option>
+                <option value="win_rate">Win Rate</option>
+                <option value="volume">Volume</option>
+              </select>
 
-          {/* Your Rank */}
-          {publicKey && yourRank && (
-            <Card className="glass-strong p-4 md:p-6 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20 pointer-events-none" />
-              <div className="relative z-10">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  <div className="flex items-center gap-3 md:gap-4">
-                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-primary/20 flex items-center justify-center flex-shrink-0">
-                      <Trophy className="w-6 h-6 md:w-8 md:h-8 text-primary" />
-                    </div>
-                    <div>
-                      <div className="text-xs md:text-sm text-muted-foreground">Your Rank</div>
-                      <div className="text-2xl md:text-3xl font-bold">#{yourRank}</div>
-                      <Badge variant="secondary" className="mt-1 text-xs">
-                        {yourRank <= 10 ? 'Top Trader' : 'Active Trader'}
-                      </Badge>
-                    </div>
+              <select
+                value={period}
+                onChange={(e) => setPeriod(e.target.value as any)}
+                className="px-3 py-2 rounded-md border bg-background text-sm"
+              >
+                <option value="all_time">All Time</option>
+                <option value="monthly">This Month</option>
+                <option value="weekly">This Week</option>
+                <option value="daily">Today</option>
+              </select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {leaderboard.map((entry) => (
+              <div
+                key={entry.traderId}
+                className={`flex flex-col md:flex-row md:items-center justify-between p-4 rounded-lg border gap-4 ${
+                  entry.rank <= 3 ? 'bg-muted/50' : ''
+                } hover:bg-muted/30 transition-colors`}
+              >
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  {/* Rank */}
+                  <div className="w-12 flex items-center justify-center flex-shrink-0">
+                    {getRankIcon(entry.rank)}
                   </div>
-                  <div className="grid grid-cols-2 gap-4 md:gap-6 text-center">
-                    <div>
-                      <div className="text-xs md:text-sm text-muted-foreground">Bets</div>
-                      <div className="text-lg md:text-xl font-bold">{yourStats.bets}</div>
+
+                  {/* Avatar */}
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <span className="font-bold text-primary">
+                      {entry.displayName[0].toUpperCase()}
+                    </span>
+                  </div>
+
+                  {/* Trader Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold truncate">
+                        {entry.displayName}
+                      </span>
+                      {entry.verified && (
+                        <Badge variant="secondary" className="text-xs">
+                          <Star className="h-3 w-3 mr-1" />
+                          Verified
+                        </Badge>
+                      )}
                     </div>
-                    <div>
-                      <div className="text-xs md:text-sm text-muted-foreground">Staked</div>
-                      <div className="text-lg md:text-xl font-bold text-secondary">{yourStats.staked} SOL</div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+                      <span>{entry.stats.totalTrades} trades</span>
+                      <span>•</span>
+                      <span>{entry.followers} followers</span>
+                      {entry.badges.length > 0 && (
+                        <>
+                          <span>•</span>
+                          <div className="flex items-center gap-1">
+                            {entry.badges.slice(0, 3).map((badge, i) => (
+                              <Badge
+                                key={i}
+                                variant="outline"
+                                className={`text-xs px-1 ${getBadgeColor(badge)}`}
+                              >
+                                {badge.replace('_', ' ')}
+                              </Badge>
+                            ))}
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
-              </div>
-            </Card>
-          )}
 
-          {/* Tabs */}
-          <Tabs defaultValue="traders" className="space-y-6">
-            <TabsList className="bg-muted/30">
-              <TabsTrigger value="traders">Top Traders</TabsTrigger>
-              <TabsTrigger value="markets">Top Markets</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="traders" className="space-y-4">
-              {loading ? (
-                <Card className="glass p-8 text-center">
-                  <Activity className="w-8 h-8 mx-auto mb-2 animate-spin text-primary" />
-                  <p className="text-muted-foreground">Loading leaderboard data...</p>
-                </Card>
-              ) : topTraders.length === 0 ? (
-                <Card className="glass p-8 text-center">
-                  <p className="text-muted-foreground">No trading activity yet. Be the first to place a bet!</p>
-                </Card>
-              ) : (
-                <>
-                  {/* Top 3 Podium */}
-                  {topTraders.length >= 3 && (
-                    <div className="grid md:grid-cols-3 gap-4 mb-6">
-                      {topTraders.slice(0, 3).map((trader, i) => (
-                        <Card
-                          key={trader.rank}
-                          className={`glass p-6 space-y-4 ${
-                            i === 0
-                              ? "md:order-2 border-primary/50 bg-primary/5"
-                              : i === 1
-                                ? "md:order-1 border-secondary/50 bg-secondary/5"
-                                : "md:order-3 border-accent/50 bg-accent/5"
-                          }`}
-                        >
-                          <div className="text-center space-y-3">
-                            <div className="flex justify-center">
-                              {i === 0 ? (
-                                <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center">
-                                  <Crown className="w-10 h-10 text-primary" />
-                                </div>
-                              ) : i === 1 ? (
-                                <div className="w-16 h-16 rounded-full bg-secondary/20 flex items-center justify-center">
-                                  <Medal className="w-8 h-8 text-secondary" />
-                                </div>
-                              ) : (
-                                <div className="w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center">
-                                  <Award className="w-8 h-8 text-accent" />
-                                </div>
-                              )}
-                            </div>
-                            <div>
-                              <div className="text-2xl font-bold">#{trader.rank}</div>
-                              <div className="text-xs text-muted-foreground font-mono">{trader.address}</div>
-                            </div>
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground">Bets</span>
-                                <span className="font-bold">{trader.totalBets}</span>
-                              </div>
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground">Staked</span>
-                                <span className="font-semibold text-secondary">{trader.totalStaked} SOL</span>
-                              </div>
-                            </div>
-                          </div>
-                        </Card>
-                      ))}
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  {/* Stats */}
+                  <div className="text-right">
+                    <div className={`text-lg font-bold ${
+                      metric === 'pnl' || metric === 'roi'
+                        ? entry.stats[metric === 'pnl' ? 'totalPnL' : 'roi'] >= 0
+                          ? 'text-green-500'
+                          : 'text-red-500'
+                        : ''
+                    }`}>
+                      {getMetricValue(entry)}
                     </div>
+                    <div className="text-sm text-muted-foreground">
+                      {entry.stats.winRate.toFixed(1)}% win rate
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  {publicKey && entry.traderId !== publicKey.toString() && (
+                    <Button
+                      variant={followingMap.has(entry.traderId) ? 'outline' : 'default'}
+                      size="sm"
+                      onClick={() => handleFollowToggle(entry.traderId)}
+                    >
+                      {followingMap.has(entry.traderId) ? (
+                        <>
+                          <UserCheck className="h-4 w-4 md:mr-2" />
+                          <span className="hidden md:inline">Following</span>
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="h-4 w-4 md:mr-2" />
+                          <span className="hidden md:inline">Follow</span>
+                        </>
+                      )}
+                    </Button>
                   )}
+                </div>
+              </div>
+            ))}
 
-                  {/* Rest of Leaderboard */}
-                  <Card className="glass p-4 md:p-6 space-y-4">
-                    <h2 className="text-lg md:text-xl font-bold">All Traders</h2>
-                    <div className="space-y-2">
-                      {topTraders.map((trader) => (
-                        <div
-                          key={trader.rank}
-                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 md:p-4 rounded-lg bg-muted/20 hover:bg-muted/30 transition-colors"
-                        >
-                          <div className="flex items-center gap-3 md:gap-4 min-w-0">
-                            <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg bg-primary/20 flex items-center justify-center font-bold text-primary text-sm md:text-base flex-shrink-0">
-                              #{trader.rank}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="text-xs md:text-sm text-muted-foreground font-mono truncate">{trader.address}</div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4 md:gap-6 pl-13 sm:pl-0">
-                            <div className="text-right">
-                              <div className="text-xs md:text-sm text-muted-foreground">Bets</div>
-                              <div className="text-sm md:text-base font-bold">{trader.totalBets}</div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-xs md:text-sm text-muted-foreground">Staked</div>
-                              <div className="text-sm md:text-base font-semibold text-secondary">{trader.totalStaked} SOL</div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-                </>
-              )}
-            </TabsContent>
-
-            <TabsContent value="markets" className="space-y-4">
-              <Card className="glass p-6 space-y-4">
-                <h2 className="text-xl font-bold">Top Markets by Volume</h2>
-                {loading ? (
-                  <div className="p-8 text-center">
-                    <Activity className="w-8 h-8 mx-auto mb-2 animate-spin text-primary" />
-                    <p className="text-muted-foreground">Loading market data...</p>
-                  </div>
-                ) : topMarkets.length === 0 ? (
-                  <div className="p-8 text-center text-muted-foreground">
-                    No markets created yet. Create the first market!
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {topMarkets.map((market) => (
-                      <div
-                        key={market.marketId}
-                        className="flex items-center justify-between p-4 rounded-lg bg-muted/20 hover:bg-muted/30 transition-colors"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center font-bold text-primary">
-                            #{market.rank}
-                          </div>
-                          <div>
-                            <div className="font-semibold">{market.title}</div>
-                            <div className="text-sm text-muted-foreground font-mono">{market.marketId}</div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-6">
-                          <div className="text-right">
-                            <div className="text-sm text-muted-foreground">Volume</div>
-                            <div className="font-bold text-secondary">{market.totalVolume} SOL</div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm text-muted-foreground">Bets</div>
-                            <div className="font-semibold">{market.totalBets}</div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
-      </div>
+            {leaderboard.length === 0 && (
+              <div className="text-center py-12 text-muted-foreground">
+                <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">No traders found</p>
+                <p className="text-sm">Be the first to trade and claim the top spot!</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
-  )
+  );
 }

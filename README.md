@@ -23,6 +23,46 @@ DriftShield allows users to create and participate in prediction markets for var
 - **x402scan Integration**: Listed on x402scan.com with UI-invokable endpoints
 - **No Gas Fees**: Facilitator sponsors transaction fees
 
+### 📊 Portfolio Management (NEW!)
+- **P&L Tracking**: Real-time profit/loss across all positions
+- **Position Analytics**: Track open and closed positions with detailed metrics
+- **Risk Metrics Dashboard**:
+  - Portfolio concentration analysis (Herfindahl Index)
+  - Exposure tracking (capital deployment %)
+  - Diversification metrics (markets, categories, outcomes)
+- **Position Sizing Calculator**: Kelly Criterion-based optimal bet sizing
+  - Adjustable win probability estimates
+  - 3 risk tolerance levels (Conservative/Moderate/Aggressive)
+  - Automatic risk management caps
+- **Trade History**: Complete audit trail with CSV export
+- **Performance Metrics**: Win rate, ROI, average hold time, max drawdown
+- **CSV Export**: Export portfolio data for external analysis
+
+### 🤝 Social Trading (NEW!)
+- **Leaderboard**:
+  - Rankings by P&L, ROI, win rate, or volume
+  - On-chain verified performance (transaction signatures)
+  - Trader badges and achievements
+  - Filterable by time period (daily/weekly/monthly/all-time)
+- **Follow System**:
+  - Follow top traders to see their activity
+  - Notifications when traders place bets
+  - View followers/following counts
+- **Copy Trading**:
+  - Automatically replicate trades from traders you follow
+  - Flexible copy modes: proportional, fixed amount, or percentage
+  - Risk controls: max bet size, daily limits, category exclusions
+  - Stop-loss protection (auto-disable if trader loses X%)
+- **Trader Profiles**:
+  - Comprehensive stats (win rate, P&L, ROI, volume, streaks)
+  - Verifiable on-chain performance
+  - Trading strategies and insights
+  - Follower/copier counts
+- **Social Feed**:
+  - Real-time activity from traders you follow
+  - Trade explanations and thesis sharing
+  - Engagement metrics (likes, comments, copies)
+
 ### Smart Contract Features
 - **Oracle Resolution**: Automated market resolution using oracle data feeds
 - **Dispute Mechanism**: 48-hour window to dispute oracle resolutions
