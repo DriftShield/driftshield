@@ -171,6 +171,16 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
           endDate: endDate.toISOString(),
         });
 
+        // Check if market has valid outcomes
+        if (numOutcomes === 0 || outcomeLabels.length === 0) {
+          console.error('[Market Detail] Market has no outcomes!');
+          setError('This market is incomplete (no outcomes). Redirecting to markets list...');
+          setTimeout(() => {
+            router.push('/dashboard/markets');
+          }, 2000);
+          return;
+        }
+
         // Calculate total volume and probabilities
         let totalVolume = 0;
         const probabilities: number[] = [];

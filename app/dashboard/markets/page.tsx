@@ -97,6 +97,13 @@ export default function MarketsPage() {
           const endDate = new Date(endTimestamp * 1000);
 
           const numOutcomes = marketData.num_outcomes;
+
+          // Skip markets with 0 outcomes (broken/incomplete markets)
+          if (numOutcomes === 0) {
+            console.log(`Skipping market ${marketData.market_id} - has 0 outcomes`);
+            continue;
+          }
+
           const outcomes = marketData.outcome_labels.slice(0, numOutcomes);
 
           // Calculate total volume and probabilities
