@@ -252,6 +252,16 @@ export async function placeBet(
   const [betPDA] = getBetPDA(marketPDA, wallet.publicKey, betIndex);
 
   try {
+    console.log('[Place Bet] Transaction details:', {
+      marketId,
+      marketPDA: marketPDA.toBase58(),
+      betPDA: betPDA.toBase58(),
+      vaultPDA: vaultPDA.toBase58(),
+      outcomeIndex,
+      betIndex,
+      amount: amount.toString(),
+    });
+
     const tx = await program.methods
       .placeBet(marketId, outcomeIndex, amount, new BN(betIndex))
       .accounts({
@@ -265,10 +275,23 @@ export async function placeBet(
 
     return tx;
   } catch (error: any) {
+    console.error('[Place Bet] Error details:', {
+      error: error.message,
+      logs: error.logs,
+      marketId,
+      marketPDA: marketPDA.toBase58(),
+    });
+
     // Better error handling for MarketClosed
     if (error.message?.includes('MarketClosed') || error.message?.includes('Market has already closed')) {
       throw new Error('This market has expired and is no longer accepting bets. Please choose an active market.');
     }
+
+    // Better error message for ConstraintSeeds
+    if (error.message?.includes('ConstraintSeeds') || error.message?.includes('seeds constraint')) {
+      throw new Error('Unable to place bet on this market. The market may have been created with an incompatible version. Please try a different market or create a new one.');
+    }
+
     throw error;
   }
 }
