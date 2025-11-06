@@ -19,6 +19,7 @@ import {
   BarChart3,
   Book,
   User,
+  PieChart,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { WalletButton } from "@/components/wallet-button"
@@ -28,6 +29,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/markets", label: "Markets", icon: TrendingUp },
   { href: "/dashboard/bets", label: "My Bets", icon: Activity },
+  { href: "/dashboard/portfolio", label: "Portfolio", icon: PieChart },
   { href: "/dashboard/profile", label: "Profile", icon: User },
   { href: "/dashboard/leaderboard", label: "Leaderboard", icon: Trophy },
   { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
