@@ -10,7 +10,7 @@ import { useX402BetSimplified } from "@/lib/hooks/useX402BetSimplified";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
-import { placeBet as placeBetOnChain, getMarketPDA, PROGRAM_ID, claimPayout, resolveMarket, getVaultPDA, getBetPDA } from "@/lib/solana/prediction-bets";
+import { placeBet as placeBetOnChain, getMarketPDA, PROGRAM_ID, claimPayout, resolveMarket, getVaultPDA, getBetPDA, buyFromCurve } from "@/lib/solana/prediction-bets";
 import { parseResolutionStatus } from "@/lib/solana/oracle-resolution";
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
 import { SystemProgram, PublicKey as SolanaPublicKey } from '@solana/web3.js';
@@ -391,25 +391,49 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
       });
 
       // Handle instant trading mode with bonding curve
-      if (tradingMode === 'instant' && curve) {
-        console.log('[Instant Trade] Executing bonding curve bet...');
+      if (tradingMode === 'instant') {
+        console.log('[Instant Trade] Executing on-chain bonding curve bet...');
 
-        const result = executeCurveBet(betAmount, outcomeIndex);
-        if (!result) {
-          throw new Error('Failed to execute bonding curve trade');
+        if (!publicKey) {
+          throw new Error('Wallet not connected');
         }
 
-        // Save curve state
-        curve.save();
+        // Get quote for slippage protection
+        const quote = getQuote(betAmount, outcomeIndex);
+        if (!quote) {
+          throw new Error('Failed to get price quote. Please try again.');
+        }
+
+        // Calculate minimum tokens with 2% slippage tolerance
+        const minTokensOut = quote.tokensOut * 0.98;
+
+        console.log('[Instant Trade] Quote:', {
+          betAmount,
+          tokensOut: quote.tokensOut,
+          minTokensOut,
+          priceImpact: quote.priceImpact,
+        });
+
+        // Execute on-chain bonding curve trade
+        const txSignature = await buyFromCurve(
+          connection,
+          { publicKey, signTransaction, connected } as any,
+          market.id,
+          outcomeIndex,
+          betAmount,
+          minTokensOut
+        );
+
+        console.log('[Instant Trade] Trade executed on-chain:', txSignature);
 
         // Create bet record for display
         const newBet: Bet = {
-          id: `instant-${Date.now()}`,
+          id: txSignature,
           marketId: market.id,
           outcome,
           amount: betAmount,
           timestamp: Date.now(),
-          txSignature: '',
+          txSignature,
           status: 'confirmed',
         };
 
@@ -417,7 +441,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
         const updatedBets = [...userBets, newBet];
         setUserBets(updatedBets);
 
-        // Store locally
+        // Store locally as backup
         localStorage.setItem(
           `bets_${publicKey.toString()}_${marketId}`,
           JSON.stringify(updatedBets)
@@ -720,8 +744,15 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   };
 
   const totalBetAmount = userBets.reduce((sum, bet) => sum + bet.amount, 0);
-  const userYesBets = userBets.filter(b => b.outcome === 'YES').length;
-  const userNoBets = userBets.filter(b => b.outcome === 'NO').length;
+
+  // Count bets by outcome (works with any outcome labels, not just YES/NO)
+  const betsByOutcome = market.outcomes.reduce((acc, outcome) => {
+    acc[outcome] = userBets.filter(b => b.outcome === outcome).length;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const userYesBets = betsByOutcome[market.outcomes[0]] || 0;
+  const userNoBets = betsByOutcome[market.outcomes[1]] || 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -923,9 +954,9 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                   Volume
                 </div>
                 <div className="font-semibold">
-                  ${volume >= 1000000
-                    ? `${(volume / 1000000).toFixed(1)}M`
-                    : `${(volume / 1000).toFixed(1)}K`}
+                  {volume >= 1000
+                    ? `${(volume / 1000).toFixed(2)}K SOL`
+                    : `${volume.toFixed(3)} SOL`}
                 </div>
               </div>
               <div className="space-y-1">
@@ -934,9 +965,9 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                   Liquidity
                 </div>
                 <div className="font-semibold">
-                  ${liquidity >= 1000000
-                    ? `${(liquidity / 1000000).toFixed(1)}M`
-                    : `${(liquidity / 1000).toFixed(1)}K`}
+                  {liquidity >= 1000
+                    ? `${(liquidity / 1000).toFixed(2)}K SOL`
+                    : `${liquidity.toFixed(3)} SOL`}
                 </div>
               </div>
               <div className="space-y-1">
@@ -1372,7 +1403,16 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                       <div className="space-y-1">
                         <div className="text-xs text-muted-foreground">Position</div>
                         <div className="font-bold">
-                          {userYesBets}Y / {userNoBets}N
+                          {market.outcomes.map((outcome, i) => {
+                            const count = betsByOutcome[outcome] || 0;
+                            if (count === 0) return null;
+                            return (
+                              <span key={outcome}>
+                                {count}{outcome.charAt(0)}
+                                {i < market.outcomes.length - 1 && betsByOutcome[market.outcomes[i + 1]] > 0 ? ' / ' : ''}
+                              </span>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>

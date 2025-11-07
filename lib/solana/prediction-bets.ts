@@ -474,3 +474,80 @@ export async function emergencyWithdraw(
 
   return tx;
 }
+
+/**
+ * Buy from bonding curve - instant trade with automatic pricing
+ */
+export async function buyFromCurve(
+  connection: Connection,
+  wallet: WalletContextState,
+  marketId: string,
+  outcomeIndex: number,
+  solAmount: number,
+  minTokensOut: number
+): Promise<string> {
+  if (!wallet.publicKey || !wallet.signTransaction) {
+    throw new Error('Wallet not connected');
+  }
+
+  const program = getProgram(connection, wallet);
+  const [marketPDA] = getMarketPDA(marketId);
+  const [vaultPDA] = getVaultPDA(marketPDA);
+
+  // Fetch market data to get bet index
+  let marketData;
+  try {
+    marketData = await (program.account as any).market.fetch(marketPDA);
+  } catch (error) {
+    throw new Error('Market not found on-chain. Cannot use bonding curve for uninitialized markets.');
+  }
+
+  // Calculate bet index (sum of all outcome bet counts)
+  let betIndex = 0;
+  for (let i = 0; i < marketData.numOutcomes; i++) {
+    betIndex += marketData.outcomeBetCounts[i].toNumber();
+  }
+
+  const [betPDA] = getBetPDA(marketPDA, wallet.publicKey, betIndex);
+
+  const amount = new BN(solAmount * LAMPORTS_PER_SOL);
+  const minTokens = new BN(Math.floor(minTokensOut * 1e9)); // Convert to proper units
+
+  try {
+    console.log('[Buy From Curve] Transaction details:', {
+      marketId,
+      marketPDA: marketPDA.toBase58(),
+      betPDA: betPDA.toBase58(),
+      vaultPDA: vaultPDA.toBase58(),
+      outcomeIndex,
+      betIndex,
+      solAmount,
+      minTokensOut,
+    });
+
+    const tx = await program.methods
+      .buyFromCurve(marketId, outcomeIndex, amount, minTokens, new BN(betIndex))
+      .accounts({
+        market: marketPDA,
+        bet: betPDA,
+        vault: vaultPDA,
+        user: wallet.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+
+    return tx;
+  } catch (error: any) {
+    console.error('[Buy From Curve] Error:', error);
+
+    if (error.message?.includes('SlippageTooHigh')) {
+      throw new Error('Price moved too much during transaction. Please try again with a higher slippage tolerance.');
+    }
+
+    if (error.message?.includes('MarketClosed')) {
+      throw new Error('This market has expired and is no longer accepting bets.');
+    }
+
+    throw error;
+  }
+}
