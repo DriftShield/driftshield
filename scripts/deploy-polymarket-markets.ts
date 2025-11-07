@@ -18,8 +18,8 @@ interface PolymarketEvent {
   }>;
 }
 
-async function fetchPolymarketMarkets(limit: number = 500): Promise<PolymarketEvent[]> {
-  console.log(`Fetching ${limit} markets from Polymarket...`);
+async function fetchPolymarketMarkets(limit: number = 300): Promise<PolymarketEvent[]> {
+  console.log(`📡 Fetching ${limit} non-expired markets from Polymarket...`);
 
   try {
     // Fetch more to filter for suitable ones
@@ -40,10 +40,17 @@ async function fetchPolymarketMarkets(limit: number = 500): Promise<PolymarketEv
       const endTimestamp = Math.floor(new Date(event.end_date_iso).getTime() / 1000);
       const outcomes = market.outcomes && market.outcomes.length > 0 ? market.outcomes : ['Yes', 'No'];
 
-      return outcomes.length >= 2 && outcomes.length <= 10 && endTimestamp > now;
+      // Only include markets that:
+      // - Have 2-10 outcomes
+      // - End in the future
+      // - End date is valid
+      return outcomes.length >= 2 &&
+             outcomes.length <= 10 &&
+             endTimestamp > now &&
+             !isNaN(endTimestamp);
     }).slice(0, limit);
 
-    console.log(`✓ Fetched ${allEvents.length} total, filtered to ${events.length} deployable markets`);
+    console.log(`✅ Fetched ${allEvents.length} total, filtered to ${events.length} deployable non-expired markets`);
     return events;
   } catch (error) {
     console.error('Error fetching from Polymarket:', error);
@@ -113,7 +120,7 @@ async function main() {
   // Parse command line args
   const args = process.argv.slice(2);
   const limitIndex = args.indexOf('--limit');
-  const limit = limitIndex !== -1 ? parseInt(args[limitIndex + 1]) : 500;
+  const limit = limitIndex !== -1 ? parseInt(args[limitIndex + 1]) : 300;
   const dryRun = args.includes('--dry-run');
 
   if (dryRun) {
