@@ -11,10 +11,11 @@ interface PolymarketEvent {
   id: string;
   title: string;
   description: string;
-  end_date_iso: string;
+  endDate: string;
   markets: Array<{
     question: string;
-    outcomes: string[];
+    outcomes: string | string[];
+    endDate?: string;
   }>;
 }
 
@@ -32,23 +33,64 @@ async function fetchPolymarketMarkets(limit: number = 300): Promise<PolymarketEv
 
     const allEvents = await response.json();
 
+    console.log(`📊 API returned ${allEvents.length} events`);
+    console.log(`📝 Sample event structure:`, JSON.stringify(allEvents[0], null, 2).slice(0, 500));
+
     // Filter for markets with 2-10 outcomes that haven't ended
     const now = Date.now() / 1000;
-    const events = allEvents.filter((event: PolymarketEvent) => {
-      if (!event.markets || event.markets.length === 0) return false;
-      const market = event.markets[0];
-      const endTimestamp = Math.floor(new Date(event.end_date_iso).getTime() / 1000);
-      const outcomes = market.outcomes && market.outcomes.length > 0 ? market.outcomes : ['Yes', 'No'];
+    let noMarkets = 0;
+    let expired = 0;
+    let tooManyOutcomes = 0;
+    let invalidDate = 0;
 
-      // Only include markets that:
-      // - Have 2-10 outcomes
-      // - End in the future
-      // - End date is valid
-      return outcomes.length >= 2 &&
-             outcomes.length <= 10 &&
-             endTimestamp > now &&
-             !isNaN(endTimestamp);
+    const events = allEvents.filter((event: PolymarketEvent) => {
+      if (!event.markets || event.markets.length === 0) {
+        noMarkets++;
+        return false;
+      }
+      const market = event.markets[0];
+      // Try market.endDate first, then event.endDate
+      const endDateStr = market.endDate || event.endDate;
+      const endTimestamp = Math.floor(new Date(endDateStr).getTime() / 1000);
+
+      // Parse outcomes - could be string or array
+      let outcomes: string[];
+      if (typeof market.outcomes === 'string') {
+        try {
+          outcomes = JSON.parse(market.outcomes);
+        } catch {
+          outcomes = ['Yes', 'No'];
+        }
+      } else if (Array.isArray(market.outcomes)) {
+        outcomes = market.outcomes;
+      } else {
+        outcomes = ['Yes', 'No'];
+      }
+
+      if (isNaN(endTimestamp)) {
+        invalidDate++;
+        return false;
+      }
+
+      if (endTimestamp <= now) {
+        expired++;
+        return false;
+      }
+
+      if (outcomes.length < 2 || outcomes.length > 10) {
+        tooManyOutcomes++;
+        return false;
+      }
+
+      return true;
     }).slice(0, limit);
+
+    console.log(`🔍 Filtering results:`);
+    console.log(`   - No markets: ${noMarkets}`);
+    console.log(`   - Expired: ${expired}`);
+    console.log(`   - Invalid dates: ${invalidDate}`);
+    console.log(`   - Too many/few outcomes: ${tooManyOutcomes}`);
+    console.log(`   - Valid markets: ${events.length}`);
 
     console.log(`✅ Fetched ${allEvents.length} total, filtered to ${events.length} deployable non-expired markets`);
     return events;
@@ -162,8 +204,23 @@ async function main() {
     const market = event.markets[0];
     const marketId = `pm-${event.id}`;
     const title = event.title.substring(0, 200); // Limit to 200 chars
-    const outcomes = market.outcomes.length > 0 ? market.outcomes : ['Yes', 'No'];
-    const endTimestamp = Math.floor(new Date(event.end_date_iso).getTime() / 1000);
+
+    // Parse outcomes
+    let outcomes: string[];
+    if (typeof market.outcomes === 'string') {
+      try {
+        outcomes = JSON.parse(market.outcomes);
+      } catch {
+        outcomes = ['Yes', 'No'];
+      }
+    } else if (Array.isArray(market.outcomes)) {
+      outcomes = market.outcomes;
+    } else {
+      outcomes = ['Yes', 'No'];
+    }
+
+    const endDateStr = market.endDate || event.endDate;
+    const endTimestamp = Math.floor(new Date(endDateStr).getTime() / 1000);
 
     // Skip if market has ended
     if (endTimestamp < Date.now() / 1000) {
