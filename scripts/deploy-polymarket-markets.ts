@@ -264,13 +264,25 @@ async function main() {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
     } catch (error: any) {
-      console.error(`   ❌ Failed: ${error.message}\n`);
-      failed++;
-      results.push({ marketId, status: 'failed', error: error.message });
+      const errorMsg = error.message || '';
+      const errorLogs = error.logs?.join(' ') || '';
 
-      // If we get an account already exists error, continue
-      // If we get other errors, we might want to stop
-      if (error.message.includes('insufficient funds')) {
+      // Check if market already exists (custom program error: 0x0)
+      if (errorMsg.includes('custom program error: 0x0') ||
+          errorLogs.includes('already in use') ||
+          errorMsg.includes('already in use')) {
+        console.log(`   ⚠️  Already exists, skipping...\n`);
+        results.push({ marketId, status: 'already-exists' });
+        continue;
+      }
+
+      console.error(`   ❌ Failed: ${errorMsg}\n`);
+      failed++;
+      results.push({ marketId, status: 'failed', error: errorMsg });
+
+      // If we get insufficient funds error, stop deployment
+      if (errorMsg.includes('insufficient funds') ||
+          errorMsg.includes('custom program error: 0x1')) {
         console.error('⛔ Insufficient funds. Stopping deployment.');
         break;
       }

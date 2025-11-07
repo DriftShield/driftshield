@@ -14,8 +14,8 @@ import { AnchorProvider, Program, BN, web3 } from '@coral-xyz/anchor';
 import { WalletContextState } from '@solana/wallet-adapter-react';
 import IDL from './prediction_bets_idl.json';
 
-// Program ID (deployed to devnet) - Actual deployed program from IDL
-export const PROGRAM_ID = new PublicKey('BQtqZ6H72cbMjmSzm6Bv5zKYBF9a6ZwCnbZJNYWNK1xj');
+// Program ID (deployed to devnet) - Updated program with bump fix
+export const PROGRAM_ID = new PublicKey('HS4Sux4XfwQfEqDpVGXXbfQV85NzwTKXdUHu55HFsduz');
 
 // IDL type for our program
 export type PredictionBetsIDL = {
@@ -260,20 +260,32 @@ export async function placeBet(
       outcomeIndex,
       betIndex,
       amount: amount.toString(),
+      marketBump: marketData.bump,
     });
 
-    const tx = await program.methods
-      .placeBet(marketId, outcomeIndex, amount, new BN(betIndex))
-      .accounts({
-        market: marketPDA,
-        bet: betPDA,
-        vault: vaultPDA,
-        user: wallet.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .rpc();
+    // First attempt: use pre-flight simulation to avoid wasting fees
+    try {
+      const tx = await program.methods
+        .placeBet(marketId, outcomeIndex, amount, new BN(betIndex))
+        .accounts({
+          market: marketPDA,
+          bet: betPDA,
+          vault: vaultPDA,
+          user: wallet.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc({ skipPreflight: false });
 
-    return tx;
+      return tx;
+    } catch (firstError: any) {
+      // If we get ConstraintSeeds error, the market may have been created with bump=0
+      if (firstError.message?.includes('ConstraintSeeds')) {
+        console.log('[Place Bet] ConstraintSeeds error detected - market may be from old version');
+        console.log('[Place Bet] Unfortunately, old markets with bump=0 are incompatible with current program');
+        console.log('[Place Bet] Please try one of the newly deployed markets (pm-xxxxx)');
+      }
+      throw firstError;
+    }
   } catch (error: any) {
     console.error('[Place Bet] Error details:', {
       error: error.message,

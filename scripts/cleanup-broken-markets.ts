@@ -9,7 +9,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import IDL from '../lib/solana/prediction_bets_idl.json';
 
-const PROGRAM_ID = new PublicKey('BQtqZ6H72cbMjmSzm6Bv5zKYBF9a6ZwCnbZJNYWNK1xj');
+const PROGRAM_ID = new PublicKey('HS4Sux4XfwQfEqDpVGXXbfQV85NzwTKXdUHu55HFsduz');
 const RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 
 async function main() {
