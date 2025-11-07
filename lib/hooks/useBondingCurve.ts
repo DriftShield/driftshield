@@ -28,32 +28,37 @@ export function useBondingCurve(marketId: string, numOutcomes: number = 2) {
 
       const marketAccount = await program.account.market.fetch(marketPDA)
 
-      // Update curve with on-chain data
-      let loadedCurve = PredictionBondingCurve.load(marketId)
-      if (!loadedCurve) {
-        loadedCurve = new PredictionBondingCurve(marketId, numOutcomes)
-      }
-
-      // Sync outcome amounts from on-chain
+      // Create new curve with on-chain data
       const outcomeAmounts = (marketAccount as any).outcomeAmounts
+      const outcomeSupplies = []
+
       for (let i = 0; i < numOutcomes && i < outcomeAmounts.length; i++) {
         // outcomeAmounts stores virtual tokens, not SOL lamports
-        loadedCurve.outcomeSupplies[i] = outcomeAmounts[i].toNumber()
+        outcomeSupplies.push(outcomeAmounts[i].toNumber())
       }
 
       // curveTotalVolume is in lamports (actual SOL)
-      loadedCurve.totalVolume = (marketAccount as any).curveTotalVolume.toNumber() / 1e9
-      loadedCurve.graduated = (marketAccount as any).curveGraduated
+      const totalVolume = (marketAccount as any).curveTotalVolume.toNumber() / 1e9
+      const curveGraduated = (marketAccount as any).curveGraduated
 
-      loadedCurve.save()
+      // Create fresh curve with synced state
+      const syncedCurve = new PredictionBondingCurve(marketId, numOutcomes)
+      syncedCurve.setState({
+        marketId,
+        outcomeSupplies,
+        totalVolume,
+        status: curveGraduated ? 'GRADUATED' : 'BONDING',
+        createdAt: Date.now(),
+        lastUpdated: Date.now()
+      })
 
-      // Create a new instance to force re-render
-      setCurve(loadedCurve.clone())
+      syncedCurve.save()
+      setCurve(syncedCurve)
 
       console.log('[Bonding Curve] Synced with on-chain:', {
-        outcomeSupplies: loadedCurve.outcomeSupplies,
-        totalVolume: loadedCurve.totalVolume,
-        graduated: loadedCurve.graduated
+        outcomeSupplies,
+        totalVolume,
+        graduated: curveGraduated
       })
 
       return true
