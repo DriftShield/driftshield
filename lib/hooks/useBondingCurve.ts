@@ -1,27 +1,76 @@
 import { useState, useEffect, useCallback } from 'react'
 import { PredictionBondingCurve, Quote } from '@/lib/bonding-curve'
+import { useConnection } from '@solana/wallet-adapter-react'
+import { getMarketPDA, PROGRAM_ID } from '@/lib/solana/prediction-bets'
+import { AnchorProvider, Program } from '@coral-xyz/anchor'
+import IDL from '@/lib/solana/prediction_bets_idl.json'
 
 export function useBondingCurve(marketId: string, numOutcomes: number = 2) {
   const [curve, setCurve] = useState<PredictionBondingCurve | null>(null)
   const [quote, setQuote] = useState<Quote | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const { connection } = useConnection()
+
+  // Fetch on-chain market data and sync curve
+  const syncWithOnChain = useCallback(async () => {
+    try {
+      const [marketPDA] = getMarketPDA(marketId)
+
+      // Create a dummy wallet for read-only operations
+      const dummyWallet = {
+        publicKey: marketPDA,
+        signTransaction: async (tx: any) => tx,
+        signAllTransactions: async (txs: any[]) => txs,
+      }
+
+      const provider = new AnchorProvider(connection, dummyWallet as any, { commitment: 'confirmed' })
+      const program = new Program(IDL as any, provider)
+
+      const marketAccount = await program.account.market.fetch(marketPDA)
+
+      // Update curve with on-chain data
+      let loadedCurve = PredictionBondingCurve.load(marketId)
+      if (!loadedCurve) {
+        loadedCurve = new PredictionBondingCurve(marketId, numOutcomes)
+      }
+
+      // Sync outcome amounts from on-chain
+      const outcomeAmounts = (marketAccount as any).outcomeAmounts
+      for (let i = 0; i < numOutcomes && i < outcomeAmounts.length; i++) {
+        loadedCurve.outcomeSupplies[i] = outcomeAmounts[i].toNumber() / 1e9 // Convert from lamports
+      }
+
+      loadedCurve.totalVolume = (marketAccount as any).curveTotalVolume.toNumber() / 1e9
+      loadedCurve.graduated = (marketAccount as any).curveGraduated
+
+      loadedCurve.save()
+      setCurve(loadedCurve)
+
+      return true
+    } catch (error) {
+      console.error('[Bonding Curve] Failed to sync with on-chain:', error)
+      return false
+    }
+  }, [marketId, numOutcomes, connection])
 
   // Initialize or load curve
   useEffect(() => {
     setIsLoading(true)
 
-    // Try to load existing curve
-    let loadedCurve = PredictionBondingCurve.load(marketId)
-
-    // Create new if doesn't exist
-    if (!loadedCurve) {
-      loadedCurve = new PredictionBondingCurve(marketId, numOutcomes)
-      loadedCurve.save()
-    }
-
-    setCurve(loadedCurve)
-    setIsLoading(false)
-  }, [marketId, numOutcomes])
+    // Try to sync with on-chain first
+    syncWithOnChain().then((synced) => {
+      if (!synced) {
+        // Fallback to local or create new
+        let loadedCurve = PredictionBondingCurve.load(marketId)
+        if (!loadedCurve) {
+          loadedCurve = new PredictionBondingCurve(marketId, numOutcomes)
+          loadedCurve.save()
+        }
+        setCurve(loadedCurve)
+      }
+      setIsLoading(false)
+    })
+  }, [marketId, numOutcomes, syncWithOnChain])
 
   // Get quote for a bet
   const getQuote = useCallback((solAmount: number, outcomeIndex: number): Quote | null => {
@@ -69,10 +118,9 @@ export function useBondingCurve(marketId: string, numOutcomes: number = 2) {
   }, [curve])
 
   // Refresh curve (useful after on-chain bet)
-  const refresh = useCallback(() => {
-    if (!curve) return
-    setCurve(curve.clone())
-  }, [curve])
+  const refresh = useCallback(async () => {
+    await syncWithOnChain()
+  }, [syncWithOnChain])
 
   return {
     curve,
@@ -82,6 +130,7 @@ export function useBondingCurve(marketId: string, numOutcomes: number = 2) {
     executeBet,
     getOdds,
     getGraduationProgress,
-    refresh
+    refresh,
+    syncWithOnChain
   }
 }

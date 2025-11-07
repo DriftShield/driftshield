@@ -106,7 +106,8 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     isLoading: curveLoading,
     getQuote,
     executeBet: executeCurveBet,
-    getOdds: getCurveOdds
+    getOdds: getCurveOdds,
+    refresh: refreshCurve
   } = useBondingCurve(marketId, market?.outcomes?.length || 2);
 
   useEffect(() => {
@@ -449,6 +450,9 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
         setBetSuccess(true);
         setTimeout(() => setBetSuccess(false), 5000);
+
+        // Refresh curve data from on-chain
+        await refreshCurve();
 
         console.log('[Instant Trade] Trade completed successfully');
         return;
