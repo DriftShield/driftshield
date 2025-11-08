@@ -10,7 +10,7 @@ import { useX402BetSimplified } from "@/lib/hooks/useX402BetSimplified";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
-import { placeBet as placeBetOnChain, getMarketPDA, PROGRAM_ID, claimPayout, resolveMarket, getVaultPDA, getBetPDA, buyFromCurve } from "@/lib/solana/prediction-bets";
+import { placeBet as placeBetOnChain, getMarketPDA, PROGRAM_ID, claimPayout, resolveMarket, getVaultPDA, getBetPDA } from "@/lib/solana/prediction-bets";
 import { parseResolutionStatus } from "@/lib/solana/oracle-resolution";
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
 import { SystemProgram, PublicKey as SolanaPublicKey } from '@solana/web3.js';
@@ -19,8 +19,6 @@ import { isAdmin } from "@/lib/constants/admin";
 import { DisputeDialog } from "@/components/dispute-dialog";
 import { AdminResolutionPanel } from "@/components/admin-resolution-panel";
 import { ResolutionStatusBadge } from "@/components/resolution-status-badge";
-import { useBondingCurve } from "@/lib/hooks/useBondingCurve";
-import { BondingCurveWidget } from "@/components/bonding-curve-widget";
 import {
   ArrowLeft,
   TrendingUp,
@@ -31,7 +29,6 @@ import {
   CheckCircle2,
   Loader2,
   AlertCircle,
-  Zap,
   Wallet,
   XCircle,
 } from "lucide-react";
@@ -82,7 +79,6 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   const [customAmount, setCustomAmount] = useState<string>('0.01');
   const [placingBet, setPlacingBet] = useState(false);
   const [betSuccess, setBetSuccess] = useState(false);
-  const [tradingMode, setTradingMode] = useState<'instant' | 'traditional'>('instant');
   const [onChainEndDate, setOnChainEndDate] = useState<Date | null>(null);
   const [isResolved, setIsResolved] = useState(false);
   const [winningOutcome, setWinningOutcome] = useState<'YES' | 'NO' | null>(null);
@@ -99,17 +95,6 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
   const userIsAdmin = isAdmin(publicKey?.toString());
 
-  // Initialize bonding curve
-  const {
-    curve,
-    quote,
-    isLoading: curveLoading,
-    getQuote,
-    executeBet: executeCurveBet,
-    getOdds: getCurveOdds,
-    refresh: refreshCurve
-  } = useBondingCurve(marketId, market?.outcomes?.length || 2);
-
   useEffect(() => {
     fetchMarket();
     fetchOnChainMarketData();
@@ -117,16 +102,6 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
       fetchUserBets();
     }
   }, [marketId, connected, publicKey]);
-
-  // Update quote when bet amount or selected outcome changes
-  useEffect(() => {
-    if (tradingMode === 'instant' && curve && selectedOutcome && market) {
-      const outcomeIndex = market.outcomes.indexOf(selectedOutcome);
-      if (outcomeIndex !== -1 && betAmount > 0) {
-        getQuote(betAmount, outcomeIndex);
-      }
-    }
-  }, [betAmount, selectedOutcome, tradingMode, curve, market, getQuote]);
 
   const fetchMarket = async () => {
     try {
@@ -390,73 +365,6 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
         outcomeIndex,
         totalOutcomes: market.outcomes.length,
       });
-
-      // Handle instant trading mode with bonding curve
-      if (tradingMode === 'instant') {
-        console.log('[Instant Trade] Executing on-chain bonding curve bet...');
-
-        if (!publicKey) {
-          throw new Error('Wallet not connected');
-        }
-
-        // Get quote for slippage protection
-        const quote = getQuote(betAmount, outcomeIndex);
-        if (!quote) {
-          throw new Error('Failed to get price quote. Please try again.');
-        }
-
-        // Calculate minimum tokens with 2% slippage tolerance
-        const minTokensOut = quote.tokensOut * 0.98;
-
-        console.log('[Instant Trade] Quote:', {
-          betAmount,
-          tokensOut: quote.tokensOut,
-          minTokensOut,
-          priceImpact: quote.priceImpact,
-        });
-
-        // Execute on-chain bonding curve trade
-        const txSignature = await buyFromCurve(
-          connection,
-          { publicKey, signTransaction, connected } as any,
-          market.id,
-          outcomeIndex,
-          betAmount,
-          minTokensOut
-        );
-
-        console.log('[Instant Trade] Trade executed on-chain:', txSignature);
-
-        // Create bet record for display
-        const newBet: Bet = {
-          id: txSignature,
-          marketId: market.id,
-          outcome,
-          amount: betAmount,
-          timestamp: Date.now(),
-          txSignature,
-          status: 'confirmed',
-        };
-
-        // Update local state
-        const updatedBets = [...userBets, newBet];
-        setUserBets(updatedBets);
-
-        // Store locally as backup
-        localStorage.setItem(
-          `bets_${publicKey.toString()}_${marketId}`,
-          JSON.stringify(updatedBets)
-        );
-
-        setBetSuccess(true);
-        setTimeout(() => setBetSuccess(false), 5000);
-
-        // Refresh curve data from on-chain
-        await refreshCurve();
-
-        console.log('[Instant Trade] Trade completed successfully');
-        return;
-      }
 
       // Traditional X402 + on-chain flow
       console.log('[Bet Flow] Starting X402 bet placement...');
@@ -1089,49 +997,11 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {/* Betting Interface */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Trading Mode Selector */}
-              {!isExpired && (
-                <Card className="glass p-4">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-muted-foreground">Trading Mode:</span>
-                    <div className="flex gap-2">
-                      <Button
-                        variant={tradingMode === 'instant' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setTradingMode('instant')}
-                        className="gap-2"
-                      >
-                        <Zap className="w-4 h-4" />
-                        Instant (Virtual LP)
-                      </Button>
-                      <Button
-                        variant={tradingMode === 'traditional' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setTradingMode('traditional')}
-                        className="gap-2"
-                      >
-                        <Users className="w-4 h-4" />
-                        Traditional (P2P)
-                      </Button>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {tradingMode === 'instant'
-                      ? 'Trade instantly with virtual liquidity - no waiting for counterparties'
-                      : 'Traditional peer-to-peer betting with on-chain resolution'}
-                  </p>
-                </Card>
-              )}
-
               <Card className="glass p-6 space-y-6">
                 <div>
-                  <h2 className="text-2xl font-bold mb-2">
-                    {tradingMode === 'instant' ? 'Instant Trade' : 'Place Your Bet'}
-                  </h2>
+                  <h2 className="text-2xl font-bold mb-2">Place Your Bet</h2>
                   <p className="text-muted-foreground text-sm">
-                    {tradingMode === 'instant'
-                      ? 'Trade instantly with automatic pricing via bonding curve'
-                      : 'Choose your bet amount and predict the outcome'}
+                    Choose your bet amount and predict the outcome
                   </p>
                 </div>
 
@@ -1374,16 +1244,6 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
             {/* Sidebar */}
             <div className="space-y-6">
-              {/* Bonding Curve Widget - Only show in instant mode */}
-              {tradingMode === 'instant' && curve && !curveLoading && market && (
-                <BondingCurveWidget
-                  curve={curve}
-                  selectedOutcome={market.outcomes.indexOf(selectedOutcome || market.outcomes[0])}
-                  betAmount={betAmount}
-                  quote={quote}
-                />
-              )}
-
               {/* Your Bets */}
               <Card className="glass p-6 space-y-4">
                 <h3 className="text-xl font-bold">Your Bets</h3>
