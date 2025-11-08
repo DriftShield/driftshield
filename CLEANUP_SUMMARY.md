@@ -70,7 +70,6 @@
 - ✅ Prediction markets (on-chain)
 - ✅ X402 payment protocol
 - ✅ Polymarket integration
-- ✅ Bonding curves
 - ✅ Multi-outcome markets
 - ✅ Admin resolution
 - ✅ Analytics dashboard
@@ -90,7 +89,6 @@ app/
 
 lib/
 ├── hooks/
-│   ├── useBondingCurve.ts
 │   └── useX402BetSimplified.ts  # NEW: Simplified x402 hook
 ├── solana/              # Solana program interactions
 ├── x402/                # NEW: X402 types and helpers

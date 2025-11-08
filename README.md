@@ -14,7 +14,7 @@ DriftShield allows users to create and participate in prediction markets for var
 - **Multi-Outcome Support**: Create and bet on markets with multiple possible outcomes
 - **On-Chain Market Creation**: Admins can create markets directly on-chain
 - **Real-Time Updates**: Live market data, odds, and betting activity
-- **Bonding Curve Pricing**: Virtual liquidity with automated price discovery
+- **Peer-to-Peer Betting**: Traditional P2P betting with on-chain settlement
 
 ### Payment System
 - **X402 Protocol**: Standard HTTP 402 payment protocol for micropayments
@@ -291,7 +291,6 @@ driftshield-ui/
 │   ├── polymarket/          # Polymarket API client
 │   ├── x402/                # X402 types and helpers
 │   ├── hooks/               # Custom React hooks
-│   │   ├── useBondingCurve.ts
 │   │   └── useX402BetSimplified.ts
 │   └── types/               # TypeScript types
 ├── middleware.ts            # X402 payment middleware
@@ -304,8 +303,7 @@ Documentation:
 ├── X402_IMPLEMENTATION.md   # X402 implementation details
 ├── X402_SCAN_INTEGRATION.md # x402scan integration guide
 ├── X402_SUMMARY.md          # X402 quick reference
-├── CLEANUP_SUMMARY.md       # Code cleanup summary
-└── BONDING_CURVE_IMPLEMENTATION.md
+└── CLEANUP_SUMMARY.md       # Code cleanup summary
 ```
 
 ## Market Initialization
@@ -507,7 +505,6 @@ Report security vulnerabilities via GitHub Issues or Twitter DM
 - ✅ Multi-outcome markets (2-10 outcomes)
 - ✅ X402 payment protocol
 - ✅ x402scan integration
-- ✅ Bonding curve pricing
 - ✅ Analytics & leaderboard
 
 ### Phase 2 (In Progress)
