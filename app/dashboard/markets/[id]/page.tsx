@@ -884,7 +884,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
               </div>
               <div className="space-y-1">
                 <div className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Zap className="w-3 h-3" />
+                  <DollarSign className="w-3 h-3" />
                   X402 Fee
                 </div>
                 <div className="font-semibold">0.002 SOL</div>
@@ -1110,7 +1110,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                                 {(probability * 100).toFixed(0)}¢
                               </span>
                               <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                                <Zap className="w-3 h-3" />
+                                <DollarSign className="w-3 h-3" />
                                 <span>Bet {betAmount} SOL</span>
                               </div>
                             </div>
@@ -1144,7 +1144,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                           {(yesPrice * 100).toFixed(1)}% chance
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Zap className="w-3 h-3" />
+                          <DollarSign className="w-3 h-3" />
                           <span>Bet {betAmount} SOL</span>
                         </div>
                       </div>
@@ -1172,7 +1172,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                           {(noPrice * 100).toFixed(1)}% chance
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Zap className="w-3 h-3" />
+                          <DollarSign className="w-3 h-3" />
                           <span>Bet {betAmount} SOL</span>
                         </div>
                       </div>
