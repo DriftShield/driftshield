@@ -3,7 +3,6 @@ const logger = require('../utils/logger');
 const { db } = require('../db');
 
 // Import processors
-const monitoringProcessor = require('./processors/monitoring');
 const marketProcessor = require('./processors/market');
 const notificationProcessor = require('./processors/notification');
 const blockchainProcessor = require('./processors/blockchain');
@@ -21,12 +20,6 @@ class JobQueue {
       host: process.env.REDIS_HOST || 'localhost',
       port: process.env.REDIS_PORT || 6379,
     };
-
-    // Monitoring Jobs Queue
-    this.queues.monitoring = new Bull('monitoring-jobs', { redis: redisConfig });
-    this.queues.monitoring.process('process-monitoring-receipt', 10, monitoringProcessor.processReceipt);
-    this.queues.monitoring.process('update-model-metrics', 5, monitoringProcessor.updateMetrics);
-    this.queues.monitoring.process('check-drift-threshold', 10, monitoringProcessor.checkDriftThreshold);
 
     // Market Jobs Queue
     this.queues.market = new Bull('market-jobs', { redis: redisConfig });
@@ -92,20 +85,6 @@ class JobQueue {
     });
 
     logger.info('All job queues initialized');
-  }
-
-  /**
-   * Add job to monitoring queue
-   */
-  async addMonitoringJob(type, data, options = {}) {
-    return this.queues.monitoring.add(type, data, {
-      attempts: 3,
-      backoff: {
-        type: 'exponential',
-        delay: 5000,
-      },
-      ...options,
-    });
   }
 
   /**
