@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useX402BetSimplified } from "@/lib/hooks/useX402BetSimplified";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
+import { PublicKey } from "@solana/web3.js";
 import { placeBet as placeBetOnChain, getMarketPDA, PROGRAM_ID, claimPayout, resolveMarket, getVaultPDA, getBetPDA } from "@/lib/solana/prediction-bets";
 import { parseResolutionStatus } from "@/lib/solana/oracle-resolution";
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
@@ -98,9 +99,15 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     fetchOnChainMarketData();
     if (connected && publicKey) {
       fetchUserBets();
-      fetchUserShares();
     }
   }, [marketId, connected, publicKey]);
+
+  // Fetch user shares when marketData is loaded
+  useEffect(() => {
+    if (connected && publicKey && marketData) {
+      fetchUserShares();
+    }
+  }, [connected, publicKey, marketData]);
 
   // Simplified fetch logic reusing existing
   const fetchMarket = async () => {
@@ -271,43 +278,40 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
     try {
       const [marketPDA] = getMarketPDA(marketId);
-      const programAccounts = await connection.getProgramAccounts(PROGRAM_ID, {
-        filters: [
-          { memcmp: { offset: 8, bytes: publicKey.toBase58() } }
-        ]
-      });
+
+      // Get Position PDA for this user and market
+      const [positionPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from('position'), marketPDA.toBuffer(), publicKey.toBuffer()],
+        PROGRAM_ID
+      );
 
       const { BorshAccountsCoder } = await import('@coral-xyz/anchor');
       const coder = new BorshAccountsCoder(IDL as any);
 
-      let yesShares = 0;
-      let noShares = 0;
+      try {
+        const accountInfo = await connection.getAccountInfo(positionPDA);
 
-      for (const { pubkey, account } of programAccounts) {
-        try {
-          const betAccount = coder.decode('Bet', account.data) as any;
-          if (betAccount.market.toBase58() !== marketPDA.toBase58()) continue;
-          if (betAccount.is_claimed) continue; // Don't count claimed bets
-
-          // Calculate shares from bet amount (simplified - in production use AMM formula)
-          const betAmountSOL = betAccount.amount.toNumber() / 1e9;
-          const outcomeIndex = betAccount.outcome_index;
-
-          // For now, approximate shares as bet amount (1:1)
-          // TODO: Use proper AMM calculation based on price at time of bet
-          if (outcomeIndex === 0) {
-            yesShares += betAmountSOL;
-          } else {
-            noShares += betAmountSOL;
-          }
-        } catch (err) {
-          continue;
+        if (!accountInfo) {
+          // No position account = no shares
+          setUserShares({ yes: 0, no: 0 });
+          return;
         }
-      }
 
-      setUserShares({ yes: yesShares, no: noShares });
+        const positionAccount = coder.decode('Position', accountInfo.data) as any;
+
+        // Position account stores shares directly from AMM
+        const yesShares = positionAccount.yes_shares?.toNumber() / 1e9 || 0;
+        const noShares = positionAccount.no_shares?.toNumber() / 1e9 || 0;
+
+        setUserShares({ yes: yesShares, no: noShares });
+        console.log('User shares:', { yes: yesShares, no: noShares });
+      } catch (err) {
+        console.error('Error decoding position account:', err);
+        setUserShares({ yes: 0, no: 0 });
+      }
     } catch (err) {
       console.error('Error fetching user shares:', err);
+      setUserShares({ yes: 0, no: 0 });
     }
   };
 

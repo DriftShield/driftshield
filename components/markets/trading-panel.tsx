@@ -98,12 +98,21 @@ export function TradingPanel({
 
   // SELL calculations
   const sellPreview = useMemo(() => {
-    if (!marketData || !userShares) return null
+    if (!marketData || !userShares) {
+      console.log('Sell preview skipped:', { marketData: !!marketData, userShares });
+      return null;
+    }
     const shares = parseFloat(sellAmount)
-    if (shares <= 0) return null
+    if (shares <= 0) {
+      console.log('Sell amount <= 0:', shares);
+      return null;
+    }
 
     const availableShares = activeOutcomeIndex === 0 ? userShares.yes : userShares.no
-    if (shares > availableShares) return null
+    if (shares > availableShares) {
+      console.log('Not enough shares:', { shares, available: availableShares });
+      return null;
+    }
 
     try {
       const pool = marketToAMMPool(marketData)
@@ -113,13 +122,22 @@ export function TradingPanel({
         ? ConstantProductAMM.getYesPrice(result.newPool)
         : ConstantProductAMM.getNoPrice(result.newPool)
 
+      console.log('Sell preview calculated:', {
+        shares,
+        solReceived: result.return,
+        avgPrice: result.avgPrice,
+        priceImpact: result.priceImpact,
+        newPrice,
+      });
+
       return {
         solReceived: result.return,
         avgPrice: result.avgPrice,
         priceImpact: result.priceImpact,
         newPrice,
       }
-    } catch {
+    } catch (err) {
+      console.error('Error calculating sell preview:', err);
       return null
     }
   }, [marketData, sellAmount, userShares, activeOutcomeIndex, outcomeType])

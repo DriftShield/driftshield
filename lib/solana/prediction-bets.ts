@@ -14,8 +14,8 @@ import { AnchorProvider, Program, BN, web3 } from '@coral-xyz/anchor';
 import { WalletContextState } from '@solana/wallet-adapter-react';
 import IDL from './prediction_bets_idl.json';
 
-// Program ID (deployed to devnet) - Updated program with bump fix
-export const PROGRAM_ID = new PublicKey('HS4Sux4XfwQfEqDpVGXXbfQV85NzwTKXdUHu55HFsduz');
+// Program ID (deployed to devnet) - Updated with AMM sell_shares instruction
+export const PROGRAM_ID = new PublicKey('48g4cCBG7hnycaruM7GP5hH8Skfc7a43BrqNWpKX53Fh');
 
 // IDL type for our program
 export type PredictionBetsIDL = {
