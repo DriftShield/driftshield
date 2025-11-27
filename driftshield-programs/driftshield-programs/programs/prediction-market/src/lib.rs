@@ -25,8 +25,13 @@ pub mod prediction_market {
         );
 
         require!(
-            virtual_liquidity > 0,
-            ErrorCode::InvalidLiquidity
+            virtual_liquidity >= 10,
+            ErrorCode::LiquidityTooLow
+        );
+
+        require!(
+            virtual_liquidity <= 10000,
+            ErrorCode::LiquidityTooHigh
         );
 
         market.creator = ctx.accounts.creator.key();
@@ -533,4 +538,8 @@ pub enum ErrorCode {
     InsufficientLiquidity,
     #[msg("Invalid liquidity parameter")]
     InvalidLiquidity,
+    #[msg("Liquidity too low (min: 10)")]
+    LiquidityTooLow,
+    #[msg("Liquidity too high (max: 10000)")]
+    LiquidityTooHigh,
 }

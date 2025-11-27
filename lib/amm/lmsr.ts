@@ -22,11 +22,12 @@ export class LMSRAMM {
   /**
    * Initialize LMSR pool
    * @param outcomes - Array of outcome labels
-   * @param liquidityParameter - Higher = slower price movement (try 100-1000)
+   * @param liquidityParameter - Higher = slower price movement
+   * Recommended: 50-100 for small markets, 100-500 for large markets
    */
   static initializePool(
     outcomes: string[],
-    liquidityParameter: number = 500
+    liquidityParameter: number = 100
   ): LMSRPool {
     return {
       outcomes,

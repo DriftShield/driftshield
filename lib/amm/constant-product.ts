@@ -17,9 +17,10 @@ export interface AMMPool {
 export class ConstantProductAMM {
   /**
    * Initialize a new pool with virtual liquidity
-   * @param virtualLiquidity - Starting virtual reserves for each outcome
+   * @param virtualLiquidity - Starting virtual reserves for each outcome (default: 50)
+   * Recommended: 20-100 for responsive markets, 500-1000 for stable markets
    */
-  static initializePool(virtualLiquidity: number = 1000): AMMPool {
+  static initializePool(virtualLiquidity: number = 50): AMMPool {
     return {
       yesReserve: virtualLiquidity,
       noReserve: virtualLiquidity,
@@ -116,6 +117,63 @@ export class ConstantProductAMM {
       priceAfter,
       priceImpact: Math.abs(priceAfter - priceBefore) / priceBefore,
     };
+  }
+
+  /**
+   * Calculate how much SOL you get for selling shares back
+   * Reverse of buying - add shares back to reserve, get SOL out
+   */
+  static calculateSellReturn(
+    pool: AMMPool,
+    shares: number,
+    outcome: 'YES' | 'NO'
+  ): {
+    return: number;
+    avgPrice: number;
+    priceImpact: number;
+    newPool: AMMPool;
+  } {
+    const newPool = { ...pool };
+
+    if (outcome === 'YES') {
+      // Selling YES shares: add back to noReserve, remove from yesReserve
+      const newNoReserve = pool.noReserve + shares;
+      const newYesReserve = pool.k / newNoReserve;
+      const solReceived = pool.yesReserve - newYesReserve;
+
+      newPool.yesReserve = newYesReserve;
+      newPool.noReserve = newNoReserve;
+      newPool.realYesBets -= solReceived;
+
+      const priceBefore = this.getYesPrice(pool);
+      const priceAfter = this.getYesPrice(newPool);
+
+      return {
+        return: solReceived,
+        avgPrice: solReceived / shares,
+        priceImpact: Math.abs(priceAfter - priceBefore) / priceBefore,
+        newPool,
+      };
+    } else {
+      // Selling NO shares: add back to yesReserve, remove from noReserve
+      const newYesReserve = pool.yesReserve + shares;
+      const newNoReserve = pool.k / newYesReserve;
+      const solReceived = pool.noReserve - newNoReserve;
+
+      newPool.yesReserve = newYesReserve;
+      newPool.noReserve = newNoReserve;
+      newPool.realNoBets -= solReceived;
+
+      const priceBefore = this.getNoPrice(pool);
+      const priceAfter = this.getNoPrice(newPool);
+
+      return {
+        return: solReceived,
+        avgPrice: solReceived / shares,
+        priceImpact: Math.abs(priceAfter - priceBefore) / priceBefore,
+        newPool,
+      };
+    }
   }
 
   /**
