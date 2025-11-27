@@ -38,7 +38,7 @@ export async function sellShares(
 
     // Calculate SOL to receive using AMM
     const pool = marketToAMMPool(marketData);
-    const sellResult = ConstantProductAMM.executeSell(pool, shares, outcome);
+    const sellResult = ConstantProductAMM.calculateSellReturn(pool, shares, outcome);
 
     // For now, this is a placeholder
     // You'll need to add a `sell_shares` instruction to your Rust program
@@ -71,7 +71,7 @@ export async function sellShares(
     return {
       success: false,
       error: 'Sell functionality requires Rust program update. Coming soon!',
-      solReceived: sellResult.solReceived,
+      solReceived: sellResult.return,
     };
   } catch (error: any) {
     console.error('Error selling shares:', error);
@@ -96,16 +96,16 @@ export function previewSellShares(
   newPrice: number;
 } {
   const pool = marketToAMMPool(marketData);
-  const result = ConstantProductAMM.executeSell(pool, shares, outcome);
+  const result = ConstantProductAMM.calculateSellReturn(pool, shares, outcome);
 
   const newPrice = outcome === 'YES'
-    ? ConstantProductAMM.getYesPrice(result.newState)
-    : ConstantProductAMM.getNoPrice(result.newState);
+    ? ConstantProductAMM.getYesPrice(result.newPool)
+    : ConstantProductAMM.getNoPrice(result.newPool);
 
   return {
-    solReceived: result.solReceived,
+    solReceived: result.return,
     avgPrice: result.avgPrice,
-    priceImpact: -(1 - newPrice / ConstantProductAMM.getCurrentPrice(pool, outcome)),
+    priceImpact: result.priceImpact,
     newPrice,
   };
 }

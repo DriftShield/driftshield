@@ -108,10 +108,16 @@ export function TradingPanel({
     try {
       const pool = marketToAMMPool(marketData)
       const result = ConstantProductAMM.calculateSellReturn(pool, shares, outcomeType)
+
+      const newPrice = outcomeType === 'YES'
+        ? ConstantProductAMM.getYesPrice(result.newPool)
+        : ConstantProductAMM.getNoPrice(result.newPool)
+
       return {
         solReceived: result.return,
         avgPrice: result.avgPrice,
         priceImpact: result.priceImpact,
+        newPrice,
       }
     } catch {
       return null
@@ -206,8 +212,12 @@ export function TradingPanel({
           {buyPreview && (
             <div className="p-3 rounded-lg bg-muted/20 space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Shares</span>
-                <span className="font-mono font-bold">{buyPreview.shares.toFixed(4)}</span>
+                <span className="text-muted-foreground">SOL Spent</span>
+                <span className="font-mono font-bold text-red-500">{betAmount.toFixed(4)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Shares Received</span>
+                <span className="font-mono font-bold text-green-500">{buyPreview.shares.toFixed(4)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Avg Price</span>
@@ -321,6 +331,12 @@ export function TradingPanel({
           {sellPreview && (
             <div className="p-3 rounded-lg bg-muted/20 space-y-2 text-sm">
               <div className="flex justify-between">
+                <span className="text-muted-foreground">Shares Sold</span>
+                <span className="font-mono font-bold text-red-500">
+                  {parseFloat(sellAmount).toFixed(4)}
+                </span>
+              </div>
+              <div className="flex justify-between">
                 <span className="text-muted-foreground">SOL Received</span>
                 <span className="font-mono font-bold text-green-500">
                   {sellPreview.solReceived.toFixed(4)}
@@ -330,9 +346,15 @@ export function TradingPanel({
                 <span className="text-muted-foreground">Avg Price</span>
                 <span className="font-mono">{(sellPreview.avgPrice * 100).toFixed(1)}¢</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Price Impact</span>
                 <span className="text-red-500">-{(sellPreview.priceImpact * 100).toFixed(2)}%</span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-border/50">
+                <span className="text-muted-foreground">New Price</span>
+                <span className="font-mono">
+                  {(sellPreview.newPrice * 100).toFixed(1)}¢
+                </span>
               </div>
             </div>
           )}
