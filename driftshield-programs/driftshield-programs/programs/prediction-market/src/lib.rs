@@ -7,13 +7,14 @@ declare_id!("APvSf7hDoZDyYgshb4LPm2mpBanbiWgdqJ53TKvKQ7Da");
 pub mod prediction_market {
     use super::*;
 
-    /// Create a new prediction market for model drift
+    /// Create a new prediction market with AMM (Constant Product)
     pub fn create_market(
         ctx: Context<CreateMarket>,
         model_pubkey: Pubkey,
         question: String,
         resolution_time: i64,
         min_stake: u64,
+        virtual_liquidity: u64,  // NEW: Virtual reserves for AMM
     ) -> Result<()> {
         let market = &mut ctx.accounts.market;
         let clock = Clock::get()?;
@@ -21,6 +22,11 @@ pub mod prediction_market {
         require!(
             resolution_time > clock.unix_timestamp,
             ErrorCode::InvalidResolutionTime
+        );
+
+        require!(
+            virtual_liquidity > 0,
+            ErrorCode::InvalidLiquidity
         );
 
         market.creator = ctx.accounts.creator.key();
@@ -37,18 +43,29 @@ pub mod prediction_market {
         market.created_at = clock.unix_timestamp;
         market.bump = *ctx.bumps.get("market").unwrap();
 
+        // AMM initialization (Constant Product: x * y = k)
+        market.amm_enabled = true;
+        market.virtual_yes_reserve = virtual_liquidity;
+        market.virtual_no_reserve = virtual_liquidity;
+        market.k_constant = virtual_liquidity
+            .checked_mul(virtual_liquidity)
+            .ok_or(ErrorCode::MathOverflow)?;
+        market.total_yes_shares = 0;
+        market.total_no_shares = 0;
+
         emit!(MarketCreated {
             market_key: market.key(),
             creator: market.creator,
             model: model_pubkey,
             question: market.question.clone(),
+            virtual_liquidity,
             timestamp: clock.unix_timestamp,
         });
 
         Ok(())
     }
 
-    /// Place a bet on the market (YES or NO)
+    /// Place a bet on the market with AMM
     pub fn place_bet(
         ctx: Context<PlaceBet>,
         outcome: bool,  // true = YES, false = NO
@@ -73,6 +90,14 @@ pub mod prediction_market {
             ErrorCode::StakeTooLow
         );
 
+        // Calculate shares using Constant Product AMM
+        let shares = if market.amm_enabled {
+            calculate_shares_out(market, outcome, amount)?
+        } else {
+            // Fallback to 1:1 for P2P markets
+            amount
+        };
+
         // Transfer tokens to market vault
         let cpi_accounts = Transfer {
             from: ctx.accounts.user_token_account.to_account_info(),
@@ -83,20 +108,28 @@ pub mod prediction_market {
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
         token::transfer(cpi_ctx, amount)?;
 
-        // Update market pools
+        // Update market pools and reserves
         if outcome {
-            market.yes_pool += amount;
+            market.yes_pool = market.yes_pool.checked_add(amount).ok_or(ErrorCode::MathOverflow)?;
+            market.total_yes_shares = market.total_yes_shares.checked_add(shares).ok_or(ErrorCode::MathOverflow)?;
         } else {
-            market.no_pool += amount;
+            market.no_pool = market.no_pool.checked_add(amount).ok_or(ErrorCode::MathOverflow)?;
+            market.total_no_shares = market.total_no_shares.checked_add(shares).ok_or(ErrorCode::MathOverflow)?;
         }
-        market.total_volume += amount;
+        market.total_volume = market.total_volume.checked_add(amount).ok_or(ErrorCode::MathOverflow)?;
 
-        // Update or create position
+        // Update user position with shares
         position.market = market.key();
         position.user = ctx.accounts.user.key();
-        position.yes_stake += if outcome { amount } else { 0 };
-        position.no_stake += if !outcome { amount } else { 0 };
-        position.total_stake += amount;
+        position.yes_shares = position.yes_shares.checked_add(if outcome { shares } else { 0 })
+            .ok_or(ErrorCode::MathOverflow)?;
+        position.no_shares = position.no_shares.checked_add(if !outcome { shares } else { 0 })
+            .ok_or(ErrorCode::MathOverflow)?;
+        position.yes_stake = position.yes_stake.checked_add(if outcome { amount } else { 0 })
+            .ok_or(ErrorCode::MathOverflow)?;
+        position.no_stake = position.no_stake.checked_add(if !outcome { amount } else { 0 })
+            .ok_or(ErrorCode::MathOverflow)?;
+        position.total_stake = position.total_stake.checked_add(amount).ok_or(ErrorCode::MathOverflow)?;
         position.claimed = false;
 
         emit!(BetPlaced {
@@ -104,6 +137,9 @@ pub mod prediction_market {
             user: ctx.accounts.user.key(),
             outcome,
             amount,
+            shares,
+            yes_price: get_yes_price(market),
+            no_price: get_no_price(market),
             timestamp: clock.unix_timestamp,
         });
 
@@ -142,13 +178,15 @@ pub mod prediction_market {
             winning_outcome: outcome,
             yes_pool: market.yes_pool,
             no_pool: market.no_pool,
+            total_yes_shares: market.total_yes_shares,
+            total_no_shares: market.total_no_shares,
             timestamp: clock.unix_timestamp,
         });
 
         Ok(())
     }
 
-    /// Claim winnings from a resolved market
+    /// Claim winnings from a resolved market (AMM with shares)
     pub fn claim_winnings(ctx: Context<ClaimWinnings>) -> Result<()> {
         let market = &ctx.accounts.market;
         let position = &mut ctx.accounts.position;
@@ -170,23 +208,33 @@ pub mod prediction_market {
 
         let winning_outcome = market.winning_outcome.ok_or(ErrorCode::NoWinningOutcome)?;
 
-        let user_winning_stake = if winning_outcome {
-            position.yes_stake
+        let user_winning_shares = if winning_outcome {
+            position.yes_shares
         } else {
-            position.no_stake
+            position.no_shares
         };
 
-        require!(user_winning_stake > 0, ErrorCode::NoWinningStake);
+        require!(user_winning_shares > 0, ErrorCode::NoWinningStake);
 
-        // Calculate payout: (user_winning_stake / winning_pool) * total_pool
-        let winning_pool = if winning_outcome {
-            market.yes_pool
+        // Calculate payout using shares
+        // Payout = (user_shares / total_winning_shares) * total_pool
+        let total_pool = market.yes_pool.checked_add(market.no_pool)
+            .ok_or(ErrorCode::MathOverflow)?;
+
+        let total_winning_shares = if winning_outcome {
+            market.total_yes_shares
         } else {
-            market.no_pool
+            market.total_no_shares
         };
 
-        let total_pool = market.yes_pool + market.no_pool;
-        let payout = (user_winning_stake as u128 * total_pool as u128 / winning_pool as u128) as u64;
+        require!(total_winning_shares > 0, ErrorCode::NoWinningStake);
+
+        // Use u128 for intermediate calculation to prevent overflow
+        let payout = (user_winning_shares as u128)
+            .checked_mul(total_pool as u128)
+            .ok_or(ErrorCode::MathOverflow)?
+            .checked_div(total_winning_shares as u128)
+            .ok_or(ErrorCode::MathOverflow)? as u64;
 
         // Transfer winnings from vault to user
         let seeds = &[
@@ -211,12 +259,88 @@ pub mod prediction_market {
         emit!(WinningsClaimed {
             market_key: market.key(),
             user: ctx.accounts.user.key(),
+            shares: user_winning_shares,
             payout,
             timestamp: Clock::get()?.unix_timestamp,
         });
 
         Ok(())
     }
+
+    /// Get current market prices (view function - call off-chain)
+    pub fn get_prices(ctx: Context<GetPrices>) -> Result<(u64, u64)> {
+        let market = &ctx.accounts.market;
+        let yes_price = get_yes_price(market);
+        let no_price = get_no_price(market);
+        Ok((yes_price, no_price))
+    }
+}
+
+// AMM Helper Functions
+
+/// Calculate shares out using Constant Product AMM (x * y = k)
+/// When betting on YES:
+/// - Add bet to yes_reserve
+/// - Calculate new no_reserve to maintain k
+/// - Shares = old_no_reserve - new_no_reserve
+fn calculate_shares_out(market: &Market, outcome: bool, bet_amount: u64) -> Result<u64> {
+    if outcome {
+        // Betting on YES
+        let new_yes_reserve = market.virtual_yes_reserve
+            .checked_add(bet_amount)
+            .ok_or(ErrorCode::MathOverflow)?;
+
+        // k = x * y, so new_y = k / new_x
+        let new_no_reserve = (market.k_constant as u128)
+            .checked_div(new_yes_reserve as u128)
+            .ok_or(ErrorCode::MathOverflow)? as u64;
+
+        let shares = market.virtual_no_reserve
+            .checked_sub(new_no_reserve)
+            .ok_or(ErrorCode::InsufficientLiquidity)?;
+
+        Ok(shares)
+    } else {
+        // Betting on NO
+        let new_no_reserve = market.virtual_no_reserve
+            .checked_add(bet_amount)
+            .ok_or(ErrorCode::MathOverflow)?;
+
+        let new_yes_reserve = (market.k_constant as u128)
+            .checked_div(new_no_reserve as u128)
+            .ok_or(ErrorCode::MathOverflow)? as u64;
+
+        let shares = market.virtual_yes_reserve
+            .checked_sub(new_yes_reserve)
+            .ok_or(ErrorCode::InsufficientLiquidity)?;
+
+        Ok(shares)
+    }
+}
+
+/// Get YES price (as basis points, e.g., 5000 = 50%)
+fn get_yes_price(market: &Market) -> u64 {
+    let total_reserve = market.virtual_yes_reserve
+        .saturating_add(market.virtual_no_reserve);
+
+    if total_reserve == 0 {
+        return 5000; // 50% default
+    }
+
+    // Price = (yes_reserve / total_reserve) * 10000
+    ((market.virtual_yes_reserve as u128 * 10000) / total_reserve as u128) as u64
+}
+
+/// Get NO price (as basis points)
+fn get_no_price(market: &Market) -> u64 {
+    let total_reserve = market.virtual_yes_reserve
+        .saturating_add(market.virtual_no_reserve);
+
+    if total_reserve == 0 {
+        return 5000; // 50% default
+    }
+
+    ((market.virtual_no_reserve as u128 * 10000) / total_reserve as u128) as u64
 }
 
 // Account Structures
@@ -226,8 +350,8 @@ pub struct Market {
     pub creator: Pubkey,
     pub model: Pubkey,           // Reference to model in registry
     pub question: String,         // Max 256 chars
-    pub yes_pool: u64,           // Total USDC staked on YES
-    pub no_pool: u64,            // Total USDC staked on NO
+    pub yes_pool: u64,           // Total USDC bet on YES
+    pub no_pool: u64,            // Total USDC bet on NO
     pub total_volume: u64,
     pub status: MarketStatus,
     pub resolution_time: i64,
@@ -236,15 +360,25 @@ pub struct Market {
     pub min_stake: u64,
     pub created_at: i64,
     pub bump: u8,
+
+    // AMM fields
+    pub amm_enabled: bool,
+    pub virtual_yes_reserve: u64,  // Virtual YES tokens for pricing
+    pub virtual_no_reserve: u64,   // Virtual NO tokens for pricing
+    pub k_constant: u64,           // Constant product (x * y = k)
+    pub total_yes_shares: u64,     // Total YES shares issued
+    pub total_no_shares: u64,      // Total NO shares issued
 }
 
 #[account]
 pub struct Position {
     pub market: Pubkey,
     pub user: Pubkey,
-    pub yes_stake: u64,
-    pub no_stake: u64,
+    pub yes_stake: u64,      // Total USDC bet on YES
+    pub no_stake: u64,       // Total USDC bet on NO
     pub total_stake: u64,
+    pub yes_shares: u64,     // YES shares owned
+    pub no_shares: u64,      // NO shares owned
     pub claimed: bool,
 }
 
@@ -263,7 +397,7 @@ pub struct CreateMarket<'info> {
     #[account(
         init,
         payer = creator,
-        space = 8 + 32 + 32 + 256 + 8 + 8 + 8 + 1 + 8 + 8 + 9 + 8 + 8 + 1 + 100,
+        space = 8 + 32 + 32 + 256 + 8 + 8 + 8 + 1 + 8 + 8 + 9 + 8 + 8 + 1 + 1 + 8 + 8 + 8 + 8 + 8 + 200,
         seeds = [b"market", creator.key().as_ref(), model_pubkey.as_ref()],
         bump
     )]
@@ -282,7 +416,7 @@ pub struct PlaceBet<'info> {
     #[account(
         init_if_needed,
         payer = user,
-        space = 8 + 32 + 32 + 8 + 8 + 8 + 1 + 100,
+        space = 8 + 32 + 32 + 8 + 8 + 8 + 8 + 8 + 1 + 200,
         seeds = [b"position", market.key().as_ref(), user.key().as_ref()],
         bump
     )]
@@ -318,6 +452,11 @@ pub struct ClaimWinnings<'info> {
     pub token_program: Program<'info, Token>,
 }
 
+#[derive(Accounts)]
+pub struct GetPrices<'info> {
+    pub market: Account<'info, Market>,
+}
+
 // Events
 
 #[event]
@@ -326,6 +465,7 @@ pub struct MarketCreated {
     pub creator: Pubkey,
     pub model: Pubkey,
     pub question: String,
+    pub virtual_liquidity: u64,
     pub timestamp: i64,
 }
 
@@ -335,6 +475,9 @@ pub struct BetPlaced {
     pub user: Pubkey,
     pub outcome: bool,
     pub amount: u64,
+    pub shares: u64,
+    pub yes_price: u64,  // Basis points (5000 = 50%)
+    pub no_price: u64,
     pub timestamp: i64,
 }
 
@@ -344,6 +487,8 @@ pub struct MarketResolved {
     pub winning_outcome: bool,
     pub yes_pool: u64,
     pub no_pool: u64,
+    pub total_yes_shares: u64,
+    pub total_no_shares: u64,
     pub timestamp: i64,
 }
 
@@ -351,6 +496,7 @@ pub struct MarketResolved {
 pub struct WinningsClaimed {
     pub market_key: Pubkey,
     pub user: Pubkey,
+    pub shares: u64,
     pub payout: u64,
     pub timestamp: i64,
 }
@@ -381,4 +527,10 @@ pub enum ErrorCode {
     NoWinningOutcome,
     #[msg("No winning stake in this position")]
     NoWinningStake,
+    #[msg("Math overflow")]
+    MathOverflow,
+    #[msg("Insufficient liquidity")]
+    InsufficientLiquidity,
+    #[msg("Invalid liquidity parameter")]
+    InvalidLiquidity,
 }
