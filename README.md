@@ -10,11 +10,24 @@ DriftShield allows users to create and participate in prediction markets for var
 
 ### Core Functionality
 - **Prediction Markets**: Bet on binary (Yes/No) and multi-outcome markets (2-10 choices)
+- **Automated Market Maker (AMM)**: Constant product formula (x × y = k) for instant liquidity
+- **Buy & Sell Anytime**: Trade shares before market resolution with dynamic pricing
+- **Virtual Liquidity Pools**: Polymarket-style reserves for responsive price discovery
 - **Fully On-Chain**: All markets and bets stored on Solana blockchain
 - **Multi-Outcome Support**: Create and bet on markets with multiple possible outcomes
 - **On-Chain Market Creation**: Admins can create markets directly on-chain
 - **Real-Time Updates**: Live market data, odds, and betting activity
-- **Peer-to-Peer Betting**: Traditional P2P betting with on-chain settlement
+
+### 📈 AMM Trading Features (NEW!)
+- **Constant Product AMM**: x × y = k formula for automated pricing
+- **Virtual Liquidity**: Configurable reserves (default: 50 SOL equivalent)
+- **Dynamic Pricing**: Prices adjust automatically based on buy/sell pressure
+- **Price Impact Preview**: See slippage before placing trades
+- **Share-Based System**: Buy and sell shares, not 1:1 tokens
+- **Instant Settlement**: Buy/sell anytime before market resolution
+- **Gain Calculator**: See potential 2x, 5x, 10x, 100x scenarios
+- **Low Liquidity Markets**: Polymarket-style responsive pricing (5-15% price swings per bet)
+- **On-Chain Position Tracking**: Your shares stored in Position PDA account
 
 ### Payment System
 - **X402 Protocol**: Standard HTTP 402 payment protocol for micropayments
@@ -93,8 +106,8 @@ DriftShield allows users to create and participate in prediction markets for var
 
 ### Blockchain
 - **Solana**: Layer 1 blockchain (Devnet/Mainnet)
-- **Anchor 0.31.1**: Rust framework for Solana programs
-- **Program ID**: `BQtqZ6H72cbMjmSzm6Bv5zKYBF9a6ZwCnbZJNYWNK1xj`
+- **Anchor 0.28.0**: Rust framework for Solana programs
+- **Program ID**: `48g4cCBG7hnycaruM7GP5hH8Skfc7a43BrqNWpKX53Fh` (with AMM support)
 
 ### Payment Protocol
 - **X402**: Standard HTTP 402 payment protocol
@@ -218,19 +231,26 @@ curl -X POST http://localhost:3000/api/x402-bet \
 The Solana program (`prediction_bets`) handles all on-chain logic:
 
 #### Accounts
-- **Market**: Stores market metadata, totals, and resolution status
-- **Bet**: Individual user bets with amount and outcome
-- **Vault**: PDA holding all funds for a market
+- **Market**: Stores market metadata, AMM reserves, totals, and resolution status
+  - `virtual_yes_reserve`, `virtual_no_reserve`: AMM liquidity pools
+  - `k_constant`: Constant product (x × y = k)
+  - `total_yes_shares`, `total_no_shares`: Total shares issued
+- **Position**: User's share holdings for a market (PDA per user per market)
+  - `yes_shares`, `no_shares`: Shares owned by user
+  - `yes_stake`, `no_stake`: SOL invested in each outcome
+- **Vault**: PDA holding all SOL for a market
 
 #### Instructions
-1. **initialize_market**: Create a new prediction market (supports 2-10 outcomes)
-2. **place_bet**: Place a bet on any outcome (by index)
-3. **auto_resolve_market**: Oracle-based automatic resolution
-4. **dispute_resolution**: Challenge oracle resolution
-5. **admin_finalize_resolution**: Manual admin resolution
-6. **finalize_oracle_resolution**: Complete undisputed resolution
-7. **claim_payout**: Claim winnings after resolution
-8. **emergency_withdraw**: Admin emergency fund recovery
+1. **create_market**: Create a new prediction market with AMM (supports 2-10 outcomes)
+2. **place_bet**: Buy shares using AMM with dynamic pricing
+3. **sell_shares**: Sell shares back to AMM pool anytime before resolution
+4. **auto_resolve_market**: Oracle-based automatic resolution
+5. **dispute_resolution**: Challenge oracle resolution
+6. **admin_finalize_resolution**: Manual admin resolution
+7. **finalize_oracle_resolution**: Complete undisputed resolution
+8. **claim_winnings**: Claim winnings after resolution (based on shares owned)
+9. **emergency_withdraw**: Admin emergency fund recovery
+10. **get_prices**: View current YES/NO prices from AMM
 
 #### Market Types
 - **Binary Markets**: Traditional Yes/No prediction markets
@@ -244,6 +264,64 @@ Market End → 24h Buffer → Oracle Resolution → 48h Dispute Period → Final
                                    ↓
                            Admin Manual Resolution
 ```
+
+## AMM (Automated Market Maker)
+
+DriftShield uses a **Constant Product AMM** similar to Uniswap, adapted for prediction markets.
+
+### How It Works
+
+**Formula**: `x × y = k`
+- `x` = Virtual YES reserve
+- `y` = Virtual NO reserve
+- `k` = Constant product
+
+**Example:**
+```
+Initial state: 50 YES × 50 NO = 2500 (k)
+YES price = 50/(50+50) = 0.50 (50%)
+
+User buys 10 SOL of YES shares:
+New YES reserve: 50 + 10 = 60
+New NO reserve: 2500 / 60 = 41.67
+Shares received: 50 - 41.67 = 8.33 shares
+New YES price: 60/(60+41.67) = 0.59 (59%)
+```
+
+### Key Features
+
+- **Dynamic Pricing**: Prices automatically adjust based on supply/demand
+- **No Counterparty Risk**: Always liquid, instant trades
+- **Price Impact**: Larger trades move prices more (slippage)
+- **Virtual Liquidity**: Default 50 SOL (adjustable: 10-10000)
+- **Share-Based**: You own shares, not tokens
+- **Sell Anytime**: Exit positions before market resolves
+
+### Trading Preview
+
+Before placing a trade, users see:
+- **SOL Spent/Received**: Amount you're paying or getting back
+- **Shares**: How many shares you'll receive/sell
+- **Avg Price**: Effective price per share
+- **Price Impact**: How much the trade moves the market
+- **New Price**: What the market price will be after your trade
+
+### Potential Gains
+
+The UI shows potential profit scenarios:
+- **2x gain**: If price doubles from your entry
+- **5x gain**: If price reaches 5x your entry
+- **10x gain**: If price reaches 10x your entry
+- **Max gain**: If your outcome wins (price → $1.00)
+
+### Parameter Recommendations
+
+| Market Size | Virtual Liquidity | Price Impact per 5 SOL bet |
+|-------------|-------------------|----------------------------|
+| Small       | 20                | 10-20% (very responsive)   |
+| Medium      | 50 (default)      | 5-15% (balanced)           |
+| Large       | 200               | 2-8% (stable)              |
+| Institutional | 1000            | <1% (very stable)          |
 
 ## API Routes
 
@@ -290,6 +368,13 @@ driftshield-ui/
 │   ├── solana/              # Solana/Anchor integration
 │   ├── polymarket/          # Polymarket API client
 │   ├── x402/                # X402 types and helpers
+│   ├── amm/                 # AMM (Automated Market Maker) library
+│   │   ├── constant-product.ts    # Constant product AMM (x × y = k)
+│   │   ├── lmsr.ts               # LMSR AMM (alternative)
+│   │   ├── on-chain-integration.ts # Connect AMM to on-chain data
+│   │   ├── polymarket-gains.ts   # Gain/loss calculators
+│   │   ├── recommended-params.ts # Parameter presets
+│   │   └── sell-shares.ts        # Sell functionality helper
 │   ├── hooks/               # Custom React hooks
 │   │   └── useX402BetSimplified.ts
 │   └── types/               # TypeScript types
@@ -299,11 +384,12 @@ driftshield-ui/
 └── monitoring-agent/        # Market monitoring
 
 Documentation:
-├── README.md                # This file
-├── X402_IMPLEMENTATION.md   # X402 implementation details
-├── X402_SCAN_INTEGRATION.md # x402scan integration guide
-├── X402_SUMMARY.md          # X402 quick reference
-└── CLEANUP_SUMMARY.md       # Code cleanup summary
+├── README.md                  # This file
+├── X402_IMPLEMENTATION.md     # X402 implementation details
+├── X402_SCAN_INTEGRATION.md   # x402scan integration guide
+├── X402_SUMMARY.md            # X402 quick reference
+├── POLYMARKET_AMM_PARAMS.md   # AMM parameter configuration guide
+└── CLEANUP_SUMMARY.md         # Code cleanup summary
 ```
 
 ## Market Initialization
@@ -470,6 +556,7 @@ For detailed information, see:
 - [X402 Implementation](./X402_IMPLEMENTATION.md) - Technical implementation
 - [x402scan Integration](./X402_SCAN_INTEGRATION.md) - Discovery and listing
 - [X402 Summary](./X402_SUMMARY.md) - Quick reference
+- [AMM Parameters Guide](./POLYMARKET_AMM_PARAMS.md) - Virtual liquidity configuration
 - [Cleanup Summary](./CLEANUP_SUMMARY.md) - Code cleanup details
 
 ## Contributing
@@ -506,17 +593,22 @@ Report security vulnerabilities via GitHub Issues or Twitter DM
 - ✅ X402 payment protocol
 - ✅ x402scan integration
 - ✅ Analytics & leaderboard
+- ✅ AMM (Automated Market Maker) with buy/sell functionality
+- ✅ Virtual liquidity pools with constant product formula
+- ✅ Polymarket-style gain calculations (2x, 5x, 10x scenarios)
+- ✅ Portfolio management & social trading
 
 ### Phase 2 (In Progress)
-- 🔄 Liquidity pools (AMM-style)
-- 🔄 Advanced analytics
-- 🔄 Social features
+- 🔄 Advanced analytics & risk metrics
+- 🔄 Enhanced social features & copy trading
+- 🔄 User-created markets
 
 ### Phase 3 (Planned)
 - ⏳ Mobile app
-- ⏳ User-created markets
 - ⏳ Cross-chain support
 - ⏳ Custom facilitator option
+- ⏳ Advanced AMM features (LMSR, hybrid models)
+- ⏳ Liquidity mining & rewards
 
 ## License
 
