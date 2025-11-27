@@ -547,7 +547,7 @@ pub struct CreateMarket<'info> {
     #[account(
         init,
         payer = creator,
-        space = 8 + 32 + 32 + 256 + 8 + 8 + 8 + 1 + 8 + 8 + 9 + 8 + 8 + 1 + 1 + 8 + 8 + 8 + 8 + 8 + 200,
+        space = 8 + 32 + 32 + 256 + 8 + 8 + 8 + 1 + 8 + 8 + 9 + 8 + 8 + 1 + 1 + 8 + 8 + 8 + 8 + 8,
         seeds = [b"market", creator.key().as_ref(), model_pubkey.as_ref()],
         bump
     )]
@@ -566,7 +566,7 @@ pub struct PlaceBet<'info> {
     #[account(
         init_if_needed,
         payer = user,
-        space = 8 + 32 + 32 + 8 + 8 + 8 + 8 + 8 + 1 + 200,
+        space = 8 + 32 + 32 + 8 + 8 + 8 + 8 + 8 + 1,
         seeds = [b"position", market.key().as_ref(), user.key().as_ref()],
         bump
     )]
