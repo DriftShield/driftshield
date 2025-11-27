@@ -151,6 +151,112 @@ pub mod prediction_market {
         Ok(())
     }
 
+    /// Sell shares back to the AMM pool
+    pub fn sell_shares(
+        ctx: Context<SellShares>,
+        outcome: bool,  // true = YES, false = NO
+        shares: u64,
+    ) -> Result<()> {
+        let market = &mut ctx.accounts.market;
+        let position = &mut ctx.accounts.position;
+        let clock = Clock::get()?;
+
+        require!(
+            market.status == MarketStatus::Open,
+            ErrorCode::MarketClosed
+        );
+
+        require!(
+            clock.unix_timestamp < market.resolution_time,
+            ErrorCode::MarketExpired
+        );
+
+        require!(
+            position.user == ctx.accounts.user.key(),
+            ErrorCode::Unauthorized
+        );
+
+        // Check user has enough shares
+        let user_shares = if outcome {
+            position.yes_shares
+        } else {
+            position.no_shares
+        };
+
+        require!(
+            user_shares >= shares,
+            ErrorCode::InsufficientShares
+        );
+
+        // Calculate SOL to return using AMM (reverse of buying)
+        let sol_out = if market.amm_enabled {
+            calculate_sol_out(market, outcome, shares)?
+        } else {
+            shares // 1:1 fallback
+        };
+
+        // Transfer SOL from vault to user
+        let seeds = &[
+            b"market",
+            market.creator.as_ref(),
+            market.model.as_ref(),
+            &[market.bump],
+        ];
+        let signer = &[&seeds[..]];
+
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.market_vault.to_account_info(),
+            to: ctx.accounts.user_token_account.to_account_info(),
+            authority: market.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+        token::transfer(cpi_ctx, sol_out)?;
+
+        // Update market pools and reserves (reverse of buying)
+        if outcome {
+            market.yes_pool = market.yes_pool.checked_sub(sol_out).ok_or(ErrorCode::InsufficientLiquidity)?;
+            market.total_yes_shares = market.total_yes_shares.checked_sub(shares).ok_or(ErrorCode::InsufficientShares)?;
+            // Update virtual reserves
+            market.virtual_no_reserve = market.virtual_no_reserve.checked_add(shares).ok_or(ErrorCode::MathOverflow)?;
+            market.virtual_yes_reserve = (market.k_constant as u128)
+                .checked_div(market.virtual_no_reserve as u128)
+                .ok_or(ErrorCode::MathOverflow)? as u64;
+        } else {
+            market.no_pool = market.no_pool.checked_sub(sol_out).ok_or(ErrorCode::InsufficientLiquidity)?;
+            market.total_no_shares = market.total_no_shares.checked_sub(shares).ok_or(ErrorCode::InsufficientShares)?;
+            // Update virtual reserves
+            market.virtual_yes_reserve = market.virtual_yes_reserve.checked_add(shares).ok_or(ErrorCode::MathOverflow)?;
+            market.virtual_no_reserve = (market.k_constant as u128)
+                .checked_div(market.virtual_yes_reserve as u128)
+                .ok_or(ErrorCode::MathOverflow)? as u64;
+        }
+        market.total_volume = market.total_volume.checked_sub(sol_out).ok_or(ErrorCode::MathOverflow)?;
+
+        // Update user position
+        if outcome {
+            position.yes_shares = position.yes_shares.checked_sub(shares).ok_or(ErrorCode::InsufficientShares)?;
+            position.yes_stake = position.yes_stake.checked_sub(sol_out).ok_or(ErrorCode::MathOverflow)?;
+        } else {
+            position.no_shares = position.no_shares.checked_sub(shares).ok_or(ErrorCode::InsufficientShares)?;
+            position.no_stake = position.no_stake.checked_sub(sol_out).ok_or(ErrorCode::MathOverflow)?;
+        }
+        position.total_stake = position.total_stake.checked_sub(sol_out).ok_or(ErrorCode::MathOverflow)?;
+
+        emit!(SharesSold {
+            market_key: market.key(),
+            user: ctx.accounts.user.key(),
+            outcome,
+            shares,
+            sol_received: sol_out,
+            yes_price: get_yes_price(market),
+            no_price: get_no_price(market),
+            timestamp: clock.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
     /// Resolve the market (can only be done by oracle/creator after resolution time)
     pub fn resolve_market(
         ctx: Context<ResolveMarket>,
@@ -323,6 +429,45 @@ fn calculate_shares_out(market: &Market, outcome: bool, bet_amount: u64) -> Resu
     }
 }
 
+/// Calculate SOL out when selling shares (reverse of calculate_shares_out)
+/// When selling YES shares:
+/// - Add shares back to no_reserve
+/// - Calculate new yes_reserve to maintain k
+/// - SOL out = old_yes_reserve - new_yes_reserve
+fn calculate_sol_out(market: &Market, outcome: bool, shares: u64) -> Result<u64> {
+    if outcome {
+        // Selling YES shares
+        let new_no_reserve = market.virtual_no_reserve
+            .checked_add(shares)
+            .ok_or(ErrorCode::MathOverflow)?;
+
+        let new_yes_reserve = (market.k_constant as u128)
+            .checked_div(new_no_reserve as u128)
+            .ok_or(ErrorCode::MathOverflow)? as u64;
+
+        let sol_out = market.virtual_yes_reserve
+            .checked_sub(new_yes_reserve)
+            .ok_or(ErrorCode::InsufficientLiquidity)?;
+
+        Ok(sol_out)
+    } else {
+        // Selling NO shares
+        let new_yes_reserve = market.virtual_yes_reserve
+            .checked_add(shares)
+            .ok_or(ErrorCode::MathOverflow)?;
+
+        let new_no_reserve = (market.k_constant as u128)
+            .checked_div(new_yes_reserve as u128)
+            .ok_or(ErrorCode::MathOverflow)? as u64;
+
+        let sol_out = market.virtual_no_reserve
+            .checked_sub(new_no_reserve)
+            .ok_or(ErrorCode::InsufficientLiquidity)?;
+
+        Ok(sol_out)
+    }
+}
+
 /// Get YES price (as basis points, e.g., 5000 = 50%)
 fn get_yes_price(market: &Market) -> u64 {
     let total_reserve = market.virtual_yes_reserve
@@ -437,6 +582,21 @@ pub struct PlaceBet<'info> {
 }
 
 #[derive(Accounts)]
+pub struct SellShares<'info> {
+    #[account(mut)]
+    pub market: Account<'info, Market>,
+    #[account(mut)]
+    pub position: Account<'info, Position>,
+    #[account(mut)]
+    pub user: Signer<'info>,
+    #[account(mut)]
+    pub user_token_account: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub market_vault: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
 pub struct ResolveMarket<'info> {
     #[account(mut)]
     pub market: Account<'info, Market>,
@@ -482,6 +642,18 @@ pub struct BetPlaced {
     pub amount: u64,
     pub shares: u64,
     pub yes_price: u64,  // Basis points (5000 = 50%)
+    pub no_price: u64,
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct SharesSold {
+    pub market_key: Pubkey,
+    pub user: Pubkey,
+    pub outcome: bool,
+    pub shares: u64,
+    pub sol_received: u64,
+    pub yes_price: u64,
     pub no_price: u64,
     pub timestamp: i64,
 }
@@ -542,4 +714,6 @@ pub enum ErrorCode {
     LiquidityTooLow,
     #[msg("Liquidity too high (max: 10000)")]
     LiquidityTooHigh,
+    #[msg("Insufficient shares to sell")]
+    InsufficientShares,
 }

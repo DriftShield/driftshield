@@ -80,12 +80,16 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
   const [claiming, setClaiming] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [isMarketAuthority, setIsMarketAuthority] = useState(false);
-  
+
   // Oracle resolution state
   const [resolutionStatus, setResolutionStatus] = useState<string>("Pending");
   const [disputed, setDisputed] = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
   const [disputeEndTime, setDisputeEndTime] = useState<number | null>(null);
+
+  // AMM state
+  const [marketData, setMarketData] = useState<any>(null);
+  const [userShares, setUserShares] = useState<{ yes: number; no: number }>({ yes: 0, no: 0 });
 
   const userIsAdmin = isAdmin(publicKey?.toString());
 
@@ -94,6 +98,7 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     fetchOnChainMarketData();
     if (connected && publicKey) {
       fetchUserBets();
+      fetchUserShares();
     }
   }, [marketId, connected, publicKey]);
 
@@ -173,31 +178,34 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
       const { BorshAccountsCoder } = await import('@coral-xyz/anchor');
       const coder = new BorshAccountsCoder(IDL as any);
       const accountInfo = await connection.getAccountInfo(marketPDA);
-      
+
       if (!accountInfo) return;
 
-      const marketData = coder.decode('Market', accountInfo.data) as any;
-      if (marketData && marketData.end_timestamp) {
-        const endTimestamp = marketData.end_timestamp.toNumber();
+      const onChainMarketData = coder.decode('Market', accountInfo.data) as any;
+      if (onChainMarketData && onChainMarketData.end_timestamp) {
+        // Save raw market data for AMM calculations
+        setMarketData(onChainMarketData);
+
+        const endTimestamp = onChainMarketData.end_timestamp.toNumber();
         setOnChainEndDate(new Date(endTimestamp * 1000));
-        setIsResolved(marketData.is_resolved);
-        
-        if (marketData.winning_outcome !== null && marketData.winning_outcome !== undefined) {
-          const outcomeLabels = marketData.outcome_labels.slice(0, marketData.num_outcomes);
-          setWinningOutcome(outcomeLabels[marketData.winning_outcome] || 'Unknown');
+        setIsResolved(onChainMarketData.is_resolved);
+
+        if (onChainMarketData.winning_outcome !== null && onChainMarketData.winning_outcome !== undefined) {
+          const outcomeLabels = onChainMarketData.outcome_labels.slice(0, onChainMarketData.num_outcomes);
+          setWinningOutcome(outcomeLabels[onChainMarketData.winning_outcome] || 'Unknown');
         }
 
-        if (marketData.resolution_status) {
-          setResolutionStatus(parseResolutionStatus(marketData.resolution_status));
+        if (onChainMarketData.resolution_status) {
+          setResolutionStatus(parseResolutionStatus(onChainMarketData.resolution_status));
         }
-        setDisputed(marketData.disputed || false);
-        setDisputeReason(marketData.dispute_reason || "");
-        if (marketData.dispute_end_time) {
-          setDisputeEndTime(marketData.dispute_end_time.toNumber());
+        setDisputed(onChainMarketData.disputed || false);
+        setDisputeReason(onChainMarketData.dispute_reason || "");
+        if (onChainMarketData.dispute_end_time) {
+          setDisputeEndTime(onChainMarketData.dispute_end_time.toNumber());
         }
 
-        if (publicKey && marketData.authority) {
-          setIsMarketAuthority(marketData.authority.toBase58() === publicKey.toBase58());
+        if (publicKey && onChainMarketData.authority) {
+          setIsMarketAuthority(onChainMarketData.authority.toBase58() === publicKey.toBase58());
         }
       }
     } catch (error) {
@@ -257,6 +265,52 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     }
   };
 
+  // Fetch user shares for AMM sell functionality
+  const fetchUserShares = async () => {
+    if (!publicKey || !marketData) return;
+
+    try {
+      const [marketPDA] = getMarketPDA(marketId);
+      const programAccounts = await connection.getProgramAccounts(PROGRAM_ID, {
+        filters: [
+          { memcmp: { offset: 8, bytes: publicKey.toBase58() } }
+        ]
+      });
+
+      const { BorshAccountsCoder } = await import('@coral-xyz/anchor');
+      const coder = new BorshAccountsCoder(IDL as any);
+
+      let yesShares = 0;
+      let noShares = 0;
+
+      for (const { pubkey, account } of programAccounts) {
+        try {
+          const betAccount = coder.decode('Bet', account.data) as any;
+          if (betAccount.market.toBase58() !== marketPDA.toBase58()) continue;
+          if (betAccount.is_claimed) continue; // Don't count claimed bets
+
+          // Calculate shares from bet amount (simplified - in production use AMM formula)
+          const betAmountSOL = betAccount.amount.toNumber() / 1e9;
+          const outcomeIndex = betAccount.outcome_index;
+
+          // For now, approximate shares as bet amount (1:1)
+          // TODO: Use proper AMM calculation based on price at time of bet
+          if (outcomeIndex === 0) {
+            yesShares += betAmountSOL;
+          } else {
+            noShares += betAmountSOL;
+          }
+        } catch (err) {
+          continue;
+        }
+      }
+
+      setUserShares({ yes: yesShares, no: noShares });
+    } catch (err) {
+      console.error('Error fetching user shares:', err);
+    }
+  };
+
   const handlePlaceBet = async () => {
     if (!connected || !publicKey || !signTransaction || !market || !selectedOutcome) {
       alert('Please connect wallet and select an outcome');
@@ -305,10 +359,58 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
       setUserBets([newBet, ...userBets]);
       await fetchMarket();
       await fetchUserBets(); // Full refresh
-      
+      await fetchUserShares();
+
     } catch (err: any) {
       console.error('Bet error:', err);
       alert(`Failed to place bet: ${err.message || 'Unknown error'}`);
+    } finally {
+      setPlacingBet(false);
+    }
+  };
+
+  const handleSellShares = async (shares: number) => {
+    if (!connected || !publicKey || !signTransaction) {
+      alert('Please connect wallet');
+      return;
+    }
+
+    setPlacingBet(true);
+    try {
+      // Import sell helper
+      const { sellShares } = await import('@/lib/amm/sell-shares');
+
+      const outcomeType = selectedOutcome === market?.outcomes[0] ? 'YES' : 'NO';
+
+      // Get program
+      const provider = new AnchorProvider(
+        connection,
+        { publicKey, signTransaction } as any,
+        { commitment: 'confirmed' }
+      );
+      const program = new Program(IDL as any, provider);
+      const [marketPDA] = getMarketPDA(marketId);
+
+      const result = await sellShares(
+        connection,
+        { publicKey, signTransaction } as any,
+        marketPDA,
+        program,
+        shares,
+        outcomeType
+      );
+
+      if (result.success) {
+        alert(`Sold ${shares.toFixed(4)} shares for ${result.solReceived?.toFixed(4)} SOL!`);
+        await fetchMarket();
+        await fetchUserBets();
+        await fetchUserShares();
+      } else {
+        alert(`Sell failed: ${result.error}`);
+      }
+    } catch (err: any) {
+      console.error('Sell error:', err);
+      alert(`Failed to sell shares: ${err.message || 'Unknown error'}`);
     } finally {
       setPlacingBet(false);
     }
@@ -419,7 +521,8 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
 
             {/* Right Column: Trading Panel */}
             <div className="lg:col-span-1 h-full">
-              <TradingPanel 
+              <TradingPanel
+                marketData={marketData}
                 outcomes={market.outcomes}
                 outcomePrices={market.outcomePrices}
                 selectedOutcome={selectedOutcome}
@@ -427,6 +530,8 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
                 betAmount={betAmount}
                 onAmountChange={setBetAmount}
                 onPlaceBet={handlePlaceBet}
+                onSellShares={handleSellShares}
+                userShares={userShares}
                 isPlacingBet={placingBet}
                 isExpired={market.closed}
                 connected={connected}
