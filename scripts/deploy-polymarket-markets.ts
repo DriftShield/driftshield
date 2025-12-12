@@ -200,24 +200,88 @@ async function main() {
       continue;
     }
 
-    // Use the first market from the event
-    const market = event.markets[0];
-    const marketId = `pm-${event.id}`;
     const title = event.title.substring(0, 200); // Limit to 200 chars
 
-    // Parse outcomes
+    // Parse outcomes - handle multi-market events
     let outcomes: string[];
-    if (typeof market.outcomes === 'string') {
-      try {
-        outcomes = JSON.parse(market.outcomes);
-      } catch {
+    let isMultiOutcome = false;
+
+    // If event has multiple markets, create multi-outcome market
+    if (event.markets.length > 1 && event.markets.length <= 10) {
+      isMultiOutcome = true;
+      console.log(`   🔀 Multi-outcome detected: ${event.markets.length} markets`);
+
+      // Extract outcome labels from each market's question
+      outcomes = event.markets.map(m => {
+        // Try to extract the outcome from the question
+        const question = m.question;
+
+        // Common patterns in Polymarket questions
+        const patterns = [
+          /Will (no|zero) .+ happen/i,  // "Will no Fed rate cuts happen" -> "0"
+          /Will (\d+)\+? .+ happen/i,   // "Will 8+ Fed rate cuts happen" -> "8+"
+          /^(\w+(?:\s+\w+){0,2}) out as/i, // "Tim Cook out as" -> "Tim Cook"
+          /Will (\w+(?:\s+\w+){0,2}) be the largest/i, // "Will NVIDIA be the largest" -> "NVIDIA"
+          /^Will (\w+(?:\s+\w+){0,2})/i, // "Will Trump" -> "Trump"
+        ];
+
+        for (const pattern of patterns) {
+          const match = question.match(pattern);
+          if (match && match[1]) {
+            let extracted = match[1];
+            // Convert "no" or "zero" to "0"
+            if (extracted.toLowerCase() === 'no' || extracted.toLowerCase() === 'zero') {
+              extracted = '0';
+            }
+            return extracted;
+          }
+        }
+
+        // Fallback: use first few words of question
+        return question.split(' ').slice(1, 4).join(' ').replace(/\?/g, '').trim();
+      }).slice(0, 10); // Max 10 outcomes
+
+      // Sort outcomes - numbers first (numerically), then alphabetically
+      outcomes.sort((a, b) => {
+        const aNum = parseFloat(a.replace('+', ''));
+        const bNum = parseFloat(b.replace('+', ''));
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+          return aNum - bNum; // Numeric sort
+        }
+        if (!isNaN(aNum)) return -1; // Numbers before text
+        if (!isNaN(bNum)) return 1;
+        return a.localeCompare(b); // Alphabetic sort
+      });
+
+      console.log(`   📊 Extracted outcomes: ${outcomes.join(', ')}`);
+
+    } else {
+      // Single market - use its outcomes
+      const market = event.markets[0];
+      if (typeof market.outcomes === 'string') {
+        try {
+          outcomes = JSON.parse(market.outcomes);
+        } catch {
+          outcomes = ['Yes', 'No'];
+        }
+      } else if (Array.isArray(market.outcomes)) {
+        outcomes = market.outcomes;
+      } else {
         outcomes = ['Yes', 'No'];
       }
-    } else if (Array.isArray(market.outcomes)) {
-      outcomes = market.outcomes;
-    } else {
-      outcomes = ['Yes', 'No'];
+
+      // Check if single market has multi-outcome (not just Yes/No)
+      if (outcomes.length > 2 && outcomes.length <= 10) {
+        isMultiOutcome = true;
+        console.log(`   🔀 Multi-outcome from single market: ${outcomes.length} outcomes`);
+        console.log(`   📊 Outcomes: ${outcomes.join(', ')}`);
+      }
     }
+
+    // Use different market ID for multi-outcome markets
+    const marketId = isMultiOutcome ? `pm-multi-${event.id}` : `pm-${event.id}`;
+
+    const market = event.markets[0]; // Still need for endDate
 
     const endDateStr = market.endDate || event.endDate;
     const endTimestamp = Math.floor(new Date(endDateStr).getTime() / 1000);

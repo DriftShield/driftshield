@@ -176,7 +176,7 @@ export function GainCalculator({ currentPrice, outcome }: GainCalculatorProps) {
 
       {/* Historical Examples */}
       <Card className="p-4 bg-secondary/20">
-        <div className="text-sm font-medium mb-2">🌙 Polymarket Moon Shots</div>
+        <div className="text-sm font-medium mb-2">🌙 Prediction Market Moon Shots</div>
         <div className="space-y-2 text-xs">
           <div className="p-2 bg-background rounded">
             <div className="font-medium">FTX Bankruptcy 2022</div>

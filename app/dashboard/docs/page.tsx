@@ -79,8 +79,8 @@ export default function DocsPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-muted-foreground">
-                    DriftShield is a decentralized prediction market platform built on Solana that enables users to bet on real-world events.
-                    We sync markets from Polymarket and bring them on-chain with ultra-low fees and instant settlement.
+                    DriftShield is a fully decentralized prediction market platform built on Solana that enables users to bet on real-world events.
+                    All markets are deployed on-chain with ultra-low fees and instant settlement.
                   </p>
 
                   <div className="grid md:grid-cols-3 gap-4 mt-6">
@@ -88,7 +88,7 @@ export default function DocsPage() {
                       <Coins className="w-8 h-8 text-primary mb-2" />
                       <h3 className="font-semibold mb-1">583+ Markets</h3>
                       <p className="text-sm text-muted-foreground">
-                        Synced from Polymarket on-chain
+                        Fully on-chain markets
                       </p>
                     </div>
 
@@ -182,7 +182,7 @@ export default function DocsPage() {
                     {
                       step: 3,
                       title: "Browse Markets",
-                      description: "Explore 583+ prediction markets synced from Polymarket. Filter by category or search for specific topics.",
+                      description: "Explore 583+ on-chain prediction markets. Filter by category or search for specific topics.",
                       action: "View Markets",
                       href: "/dashboard/markets"
                     },

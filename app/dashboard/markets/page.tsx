@@ -15,6 +15,7 @@ import IDL from '@/lib/solana/prediction_bets_idl.json';
 import { isAdmin } from "@/lib/constants/admin";
 import { Market, BinaryMarket, MultiOutcomeMarket, isBinaryMarket, isMultiOutcomeMarket } from "@/lib/types/market";
 import { MultiOutcomeCard } from "@/components/markets/multi-outcome-card";
+import { MARKET_BLACKLIST } from "@/lib/constants/market-blacklist";
 
 export default function MarketsPage() {
   const { connection } = useConnection();
@@ -87,6 +88,12 @@ export default function MarketsPage() {
             continue;
           }
 
+          // Additional validation: check if buffer length is reasonable (max 10KB)
+          if (account.data.length > 10240) {
+            console.log(`Skipping account ${pubkey.toBase58()} - data too large (${account.data.length} bytes)`);
+            continue;
+          }
+
           // Try to decode as Market account using BorshAccountsCoder directly
           const marketData = coder.decode('Market', account.data) as any;
 
@@ -104,6 +111,12 @@ export default function MarketsPage() {
             continue;
           }
 
+          // Skip blacklisted markets (incorrectly deployed as binary)
+          if (MARKET_BLACKLIST.has(marketData.market_id)) {
+            console.log(`Skipping blacklisted market ${marketData.market_id}`);
+            continue;
+          }
+
           const outcomes = marketData.outcome_labels.slice(0, numOutcomes);
 
           // Calculate total volume and probabilities
@@ -112,7 +125,8 @@ export default function MarketsPage() {
             totalVolume += marketData.outcome_amounts[i].toNumber() / 1e9;
           }
 
-          const isBinary = numOutcomes === 2;
+          // Determine if binary: must have 2 outcomes AND not have "multi" in market ID
+          const isBinary = numOutcomes === 2 && !marketData.market_id.includes('-multi-');
 
           if (isBinary) {
             const yesAmount = marketData.outcome_amounts[0].toNumber() / 1e9;
@@ -154,7 +168,9 @@ export default function MarketsPage() {
           }
         } catch (decodeError: any) {
           // Skip accounts that can't be decoded as Market (could be Bet or Vault accounts)
-          if (decodeError?.message && !decodeError.message.includes('Invalid account discriminator')) {
+          if (decodeError instanceof RangeError) {
+            console.log(`Skipping account ${pubkey.toBase58()} - buffer error (corrupted data)`);
+          } else if (decodeError?.message && !decodeError.message.includes('Invalid account discriminator')) {
             console.log('Decode error:', decodeError.message.substring(0, 100));
           }
           continue;

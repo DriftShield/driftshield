@@ -42,7 +42,7 @@ export function MultiOutcomeCard({ market }: MultiOutcomeCardProps) {
                 </div>
               )}
               <Badge variant="default" className="text-xs">
-                Polymarket
+                On-Chain
               </Badge>
             </div>
             <h3 className="text-base md:text-lg font-semibold leading-tight">{market.question}</h3>

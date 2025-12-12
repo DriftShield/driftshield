@@ -1,0 +1,93 @@
+=== Finding and Fixing Bugged Markets ===
+
+(node:21945) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Found 79 events that should be multi-outcome
+
+Bugged markets (deployed as binary, should be multi): 0
+Markets needing deployment: 15
+
+
+=== Deploying 15 Multi-Outcome Markets ===
+
+[1/15] 📤 UK election called by...?...
+   Market ID: pm-multi-16423
+   Outcomes: the next UK, the next UK, the next UK, the next UK
+   ✅ Deployed! TX: 4wrDwPqrDa8mHCLDRf6tPXR5dc7RTjw8f4rTaTiVFhCH7i2ZJcmSsg9HYKGbWBptyVEP3EWJSDUcjJF1gn8JfRRQ
+
+[2/15] 📤 Will Russia capture Kostyantynivka by...?...
+   Market ID: pm-multi-25036
+   Outcomes: Russia capture Kostyantynivka, Russia capture Kostyantynivka, Russia capture Kostyantynivka, Russia capture Kostyantynivka, Russia capture Kostyantynivka, Russia capture Kostyantynivka, Russia capture Kostyantynivka
+   ✅ Deployed! TX: juj63QrbzbVENp8eKA4DBgUX4oQgMjCjHXkgWCE21ioVv2LFeiyc8VJUPAGy7s5euMDELbZdbpLDHiaYDh3RG3M
+
+[3/15] 📤 Tesla launches unsupervised full self driving (FSD) by...?...
+   Market ID: pm-multi-25483
+   Outcomes: launches unsupervised full, launches unsupervised full, launches unsupervised full, launches unsupervised full
+   ✅ Deployed! TX: 2JghaDycci7fV2sjZj4tnXjSHpnrd7j7R4Xn1Mr8YuPQPbNRmZYQDqTvXYpmY9LVLqZZceu87JhQL969DJJnoJ4M
+
+[4/15] 📤 Will Russia capture Sumy by...?...
+   Market ID: pm-multi-25827
+   Outcomes: Russia capture Sumy, Russia capture Sumy
+   ✅ Deployed! TX: zA99MisbDjSgTyFndpUwVTnVBG4hKSx2BrEeq3FNoy1XJQGfeFoYhyPB8J3HtRkx4DkaabKmN1y12PEHH9Vb4Vq
+
+[5/15] 📤 Pump.fun airdrop by ....? ...
+   Market ID: pm-multi-25930
+   Outcomes: Pump, Pump, Pump, Pump, Pump, Pump, Pump
+   ✅ Deployed! TX: 5VeiLctaWEyZKs4LRXwbPLvGtoNRYtnGsE5aoV6dByM1GNLK3qfkx2N9ism4vkJ9GrG7KNc76xZQzEGudqpJ949a
+
+[6/15] 📤 Hyperliquid airdrop by ....? ...
+   Market ID: pm-multi-27831
+   Outcomes: Hyperliquid perform an, Hyperliquid perform an, Hyperliquid perform an, Hyperliquid perform an
+   ✅ Deployed! TX: 35U4sALnyFu32AChdfNBopDH8wZhNH9vAGuZwQ73E7EmTbwk842Z45aJvYFf4NjNeusJZYfVEWjA2GGAQeabA8KG
+
+[7/15] 📤 Israel x Iran ceasefire broken by...? ...
+   Market ID: pm-multi-28628
+   Outcomes: x Iran ceasefire, x Iran ceasefire, x Iran ceasefire, x Iran ceasefire, x Iran ceasefire, x Iran ceasefire, x Iran ceasefire, x Iran ceasefire
+   ✅ Deployed! TX: 3WLAGJM6omFVRNEsAEJn5BrQnvenyWikmRRUoypfuRFeNtqS2adGF6siV26ubUkemx3dpGK81SBnQ4aMVRQzgL6r
+
+[8/15] 📤 Peak US National Debt this year?...
+   Market ID: pm-multi-31563
+   Outcomes: the U, the U, the U, the U
+   ✅ Deployed! TX: 42WMc8vQrMRf8XKTzo7CYaVLYmFoVyg2cJWYgw9fG7ByxY5a4TURDVW65n33Vu7BczWLrezGzpYtX54tJDepRD5e
+
+[9/15] 📤 Which party will win the Senate in 2026?...
+   Market ID: pm-multi-32224
+   Outcomes: another party control, Party A control, Party B control, Party C control, Party D control, Party E control, Party F control, the Democratic Party, the Republican Party
+   ✅ Deployed! TX: WXg3mAXCHGXHZHiGnNyHmskoNiXxvyStkYLAxfWkDBajmCG1pKkyNrDT99fJHzxwPXtXPWbeE8n6jsWcxtjczDT
+
+[10/15] 📤 Which party will win the House in 2026?...
+   Market ID: pm-multi-32225
+   Outcomes: another party control, Party A control, Party B control, Party C control, Party D control, Party E control, Party F control, the Democratic Party, the Republican Party
+   ✅ Deployed! TX: 4b92pnqZS8weVTyx2rzF7AgWG4scgfgQ1CQ872WPWY7TcJd6iqicbmDtmD8RYBFz4PNazqSccqtDRMikYqVYh8g7
+
+[11/15] 📤 Balance of Power: 2026 Midterms...
+   Market ID: pm-multi-32228
+   Outcomes: Balance of Power:, Balance of Power:, Balance of Power:, Balance of Power:, Balance of Power:
+   ✅ Deployed! TX: 4PAozaJzNkEuVyH2nTtn9zwYvNs5zdKTvTj1Yfw4ko9Ln6TtUiE3xGn5ujhwiKRhVKP9JpCep9zeEtdN1RfDXo74
+
+[12/15] 📤 Which boroughs will Mamdani win in NYC Mayoral Election?...
+   Market ID: pm-multi-32590
+   Outcomes: Zohran Mamdani, Zohran Mamdani, Zohran Mamdani, Zohran Mamdani, Zohran Mamdani
+   ✅ Deployed! TX: 3ZamEJU2SxDepWB6ZaUA4YpymPQTM7zwkbZU8N1dLuHfe4SKaLzxgYu6Y3qb7qFTBVh9uSw6PXhaPEXKWWEwNYEy
+
+[13/15] 📤 How many boroughs will Mamdani win in NYC Mayoral Election?...
+   Market ID: pm-multi-32592
+   Outcomes: Zohran Mamdani, Zohran Mamdani, Zohran Mamdani, Zohran Mamdani, Zohran Mamdani, Zohran Mamdani
+   ✅ Deployed! TX: 4KqFYW7AUsJxEaw8HgByJH8Vb83T6bSidz1cZukL7cWP73jEJY9wF5F3J4ybir1uDsdEUaJSTanWQVKCU9t24kPN
+
+[14/15] 📤 Will Russia capture Lyman by...?...
+   Market ID: pm-multi-33647
+   Outcomes: Russia capture Lyman, Russia capture Lyman
+   ✅ Deployed! TX: 2C342V2LZu9TcLinevYkHX1Ph6kAt1kCMwf2FhbP81QSWH8c57khv1NsTrLdX6uGhC2psk91p7Cq4CVZTXeAEZZB
+
+[15/15] 📤 Will Israel annex any territory by December 31?...
+   Market ID: pm-multi-33685
+   Outcomes: Israel annex any, Israel annex any
+   ✅ Deployed! TX: Tmo76H7JjMqsZPc2NZvBv2jGZYwGifwHtyzDizg3E1K4TzbdbWsp2FVhMzt7AqrL7FUVJmZ9NYbe5oQTMNoMu3c
+
+
+=== Summary ===
+Deployed: 15
+Already existed: 0
+Failed: 0
+Total bugged markets blacklisted: 0

@@ -21,7 +21,7 @@ export default function LandingPage() {
         <div className="container mx-auto max-w-6xl relative z-10">
           <div className="text-center space-y-8">
             <Badge variant="secondary" className="text-sm px-4 py-1.5">
-              Powered by Solana • X402 Payments • Polymarket Data
+              Powered by Solana • X402 Payments • Fully On-Chain
             </Badge>
 
             <h1 className="text-5xl md:text-7xl font-bold text-balance leading-tight">
@@ -93,15 +93,15 @@ export default function LandingPage() {
               <div className="w-12 h-12 rounded-full bg-secondary/20 flex items-center justify-center">
                 <Globe className="w-6 h-6 text-secondary" />
               </div>
-              <h3 className="text-xl font-bold">Real Polymarket Data</h3>
+              <h3 className="text-xl font-bold">Real-Time Market Data</h3>
               <p className="text-muted-foreground">
-                Browse trending markets from Polymarket. Politics, crypto, sports, science, and more.
+                Browse trending prediction markets. Politics, crypto, sports, science, and more.
                 Real-time probabilities and volume data.
               </p>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-secondary" />
-                  <span>Live market data from Polymarket</span>
+                  <span>Live on-chain market data</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-secondary" />
@@ -170,7 +170,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-xl font-bold">Browse Markets</h3>
               <p className="text-muted-foreground">
-                Explore real markets from Polymarket. Filter by category.
+                Explore real prediction markets. Filter by category.
                 See live probabilities and volume.
               </p>
             </div>
@@ -215,8 +215,8 @@ export default function LandingPage() {
             <div className="w-px h-12 bg-border" />
 
             <div className="text-center">
-              <h3 className="font-bold text-lg">Polymarket</h3>
-              <p className="text-sm text-muted-foreground whitespace-nowrap">Market data sync</p>
+              <h3 className="font-bold text-lg">Real-Time</h3>
+              <p className="text-sm text-muted-foreground whitespace-nowrap">Live market data</p>
             </div>
 
             <div className="w-px h-12 bg-border" />
@@ -297,7 +297,7 @@ export default function LandingPage() {
             <div>
               <h4 className="font-semibold mb-4">Resources</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="https://docs.polymarket.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary">Polymarket Docs</a></li>
+                <li><Link href="/dashboard/docs" className="hover:text-primary">Documentation</Link></li>
                 <li><a href="https://solana.com/developers/guides/getstarted/intro-to-x402" target="_blank" rel="noopener noreferrer" className="hover:text-primary">X402 Protocol</a></li>
                 <li><a href="https://solana.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary">Solana</a></li>
                 <li><a href="https://phantom.app" target="_blank" rel="noopener noreferrer" className="hover:text-primary">Phantom Wallet</a></li>
@@ -306,7 +306,7 @@ export default function LandingPage() {
           </div>
 
           <div className="mt-12 pt-8 border-t border-border/50 text-center text-sm text-muted-foreground">
-            <p>© 2025 DriftShield. Built on Solana with X402. Powered by Polymarket data.</p>
+            <p>© 2025 DriftShield. Built on Solana with X402. Fully on-chain prediction markets.</p>
           </div>
         </div>
       </footer>

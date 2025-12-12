@@ -1,4 +1,4 @@
-# Polymarket & Prediction Market AMM Parameters
+ab# Polymarket & Prediction Market AMM Parameters
 
 ## The Problem: Markets Don't Move Enough
 
@@ -28,6 +28,8 @@ Polymarket actually uses a **hybrid model**:
 | Medium | $1K-10K | **50-200** | Moderate |
 | Large | $10K-100K | **200-500** | Stable |
 | Mega | $100K+ | **500-1000** | Very stable |
+
+
 
 ## Real-World Examples
 

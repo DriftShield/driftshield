@@ -15,7 +15,7 @@ import { WalletContextState } from '@solana/wallet-adapter-react';
 import IDL from './prediction_bets_idl.json';
 
 // Program ID (deployed to devnet) - Updated with AMM sell_shares instruction
-export const PROGRAM_ID = new PublicKey('48g4cCBG7hnycaruM7GP5hH8Skfc7a43BrqNWpKX53Fh');
+export const PROGRAM_ID = new PublicKey('BWaxKuJSfQsZSgcRnPuvZbYq5ozmy8J48yhbRw88ADwP');
 
 // IDL type for our program
 export type PredictionBetsIDL = {

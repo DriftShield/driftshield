@@ -4,7 +4,7 @@ export const PROGRAM_IDS = {
   devnet: {
     modelRegistry: new PublicKey('34HbFEsYeFa1NrdUyShWXKB36NZ5p4tCjogDbg2p98xm'),
     insurance: new PublicKey('2YbvCZwBSQN9Pe8hmcPDHk2MBCpwHk4tZ11WVuB7LXwC'),
-    predictionMarket: new PublicKey('48g4cCBG7hnycaruM7GP5hH8Skfc7a43BrqNWpKX53Fh'),
+    predictionMarket: new PublicKey('BWaxKuJSfQsZSgcRnPuvZbYq5ozmy8J48yhbRw88ADwP'),
   },
   mainnet: {
     // Add mainnet program IDs when deployed
