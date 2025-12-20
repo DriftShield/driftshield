@@ -1,5 +1,6 @@
 import { LandingNav } from "@/components/landing-nav"
 import { StatsTicker } from "@/components/stats-ticker"
+import { ScrollAnimations } from "@/components/scroll-animations"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -9,14 +10,26 @@ import Link from "next/link"
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background font-sans selection:bg-cyan-900/30 selection:text-cyan-200">
+      <ScrollAnimations />
       <LandingNav />
 
       {/* Hero Section */}
       <section className="relative pt-40 pb-20 px-4 overflow-hidden">
+        {/* Video Background */}
+        <div className="absolute inset-0 z-0">
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full h-full object-cover opacity-50 mix-blend-screen scale-110"
+          >
+            <source src="/hero-background.webm" type="video/webm" />
+          </video>
+          <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/50 to-background" />
+        </div>
+
         {/* Animated Background Elements */}
-        
-        {/* Animated Grid */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:48px_48px] pointer-events-none animate-grid-fade" />
         
         {/* Primary Floating Orb - Cyan */}
         <div className="absolute top-20 right-[10%] w-[600px] h-[600px] rounded-full pointer-events-none animate-float">
@@ -100,7 +113,7 @@ export default function LandingPage() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            <Card className="glass p-8 space-y-6 bg-zinc-950/50 border-white/5 hover:border-cyan-500/30 group">
+            <Card className="feature-card glass p-8 space-y-6 bg-zinc-950/50 border-white/5 hover:border-cyan-500/30 group">
               <div className="w-14 h-14 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center shadow-lg shadow-cyan-900/10 group-hover:scale-110 transition-transform duration-300">
                 <Coins className="w-7 h-7 text-cyan-400" />
               </div>
@@ -127,7 +140,7 @@ export default function LandingPage() {
               </ul>
             </Card>
 
-            <Card className="glass p-8 space-y-6 bg-zinc-950/50 border-white/5 hover:border-cyan-500/30 group">
+            <Card className="feature-card glass p-8 space-y-6 bg-zinc-950/50 border-white/5 hover:border-cyan-500/30 group">
               <div className="w-14 h-14 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center shadow-lg shadow-cyan-900/10 group-hover:scale-110 transition-transform duration-300">
                 <Globe className="w-7 h-7 text-cyan-400" />
               </div>
@@ -154,7 +167,7 @@ export default function LandingPage() {
               </ul>
             </Card>
 
-            <Card className="glass p-8 space-y-6 bg-zinc-950/50 border-white/5 hover:border-cyan-500/30 group">
+            <Card className="feature-card glass p-8 space-y-6 bg-zinc-950/50 border-white/5 hover:border-cyan-500/30 group">
               <div className="w-14 h-14 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center shadow-lg shadow-cyan-900/10 group-hover:scale-110 transition-transform duration-300">
                 <Shield className="w-7 h-7 text-cyan-400" />
               </div>
@@ -198,7 +211,7 @@ export default function LandingPage() {
              {/* Connector Line (Desktop) */}
             <div className="hidden md:block absolute top-8 left-[16%] right-[16%] h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
 
-            <div className="text-center space-y-6 relative">
+            <div className="step-item text-center space-y-6 relative">
               <div className="w-16 h-16 rounded-full bg-zinc-950 border border-white/10 flex items-center justify-center mx-auto relative z-10 shadow-[0_0_20px_-5px_rgba(6,182,212,0.3)]">
                 <span className="text-2xl font-bold text-cyan-400 font-mono">1</span>
               </div>
@@ -211,7 +224,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div className="text-center space-y-6 relative">
+            <div className="step-item text-center space-y-6 relative">
               <div className="w-16 h-16 rounded-full bg-zinc-950 border border-white/10 flex items-center justify-center mx-auto relative z-10 shadow-[0_0_20px_-5px_rgba(6,182,212,0.3)]">
                 <span className="text-2xl font-bold text-cyan-400 font-mono">2</span>
               </div>
@@ -224,7 +237,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div className="text-center space-y-6 relative">
+            <div className="step-item text-center space-y-6 relative">
               <div className="w-16 h-16 rounded-full bg-zinc-950 border border-white/10 flex items-center justify-center mx-auto relative z-10 shadow-[0_0_20px_-5px_rgba(6,182,212,0.3)]">
                 <span className="text-2xl font-bold text-cyan-400 font-mono">3</span>
               </div>
@@ -250,7 +263,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="flex items-center justify-center gap-16 overflow-x-auto py-4">
+          <div className="tech-stack-container flex items-center justify-center gap-16 overflow-x-auto py-4">
             <div className="text-center group">
               <h3 className="font-bold text-lg text-white group-hover:text-cyan-400 transition-colors">Solana</h3>
               <p className="text-xs text-zinc-500 font-mono uppercase tracking-wider mt-1">Lightning-fast blockchain</p>
@@ -292,7 +305,7 @@ export default function LandingPage() {
           <div className="absolute inset-0 bg-teal-500/10 rounded-full blur-[80px] animate-pulse-glow-delayed" />
         </div>
         <div className="container mx-auto max-w-4xl relative z-10">
-          <Card className="glass p-12 text-center space-y-8 border border-cyan-500/20 shadow-[0_0_50px_-20px_rgba(6,182,212,0.2)] bg-black/40 backdrop-blur-xl">
+          <Card className="cta-card glass p-12 text-center space-y-8 border border-cyan-500/20 shadow-[0_0_50px_-20px_rgba(6,182,212,0.2)] bg-black/40 backdrop-blur-xl">
             <div className="w-20 h-20 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mx-auto shadow-[0_0_30px_-10px_rgba(6,182,212,0.3)]">
               <Rocket className="w-10 h-10 text-cyan-400" />
             </div>
