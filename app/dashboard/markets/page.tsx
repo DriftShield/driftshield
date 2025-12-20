@@ -146,19 +146,28 @@ export default function MarketsPage() {
               isMultiOutcome: false,
             } as BinaryMarket);
           } else {
-            // Multi-outcome market
-            const outcomeProbabilities: number[] = [];
+            // Multi-outcome market - create proper MarketOutcome objects
+            const marketOutcomes = [];
             for (let i = 0; i < numOutcomes; i++) {
               const amount = marketData.outcome_amounts[i].toNumber() / 1e9;
-              outcomeProbabilities.push(totalVolume > 0 ? amount / totalVolume : 1 / numOutcomes);
+              const probability = totalVolume > 0 ? amount / totalVolume : 1 / numOutcomes;
+              const price = Math.round(probability * 100); // Price in cents (0-100)
+              
+              marketOutcomes.push({
+                id: `${marketData.market_id}-outcome-${i}`,
+                label: outcomes[i] || `Outcome ${i + 1}`,
+                probability: probability,
+                price: price,
+                volume: amount,
+              });
             }
 
             onChainMarkets.push({
               id: marketData.market_id,
               question: marketData.title,
               category: 'Other',
-              outcomes,
-              outcomeProbabilities,
+              outcomes: marketOutcomes,
+              totalOutcomes: numOutcomes,
               volume: totalVolume,
               liquidity: totalVolume,
               endDate: endDate.toISOString(),
@@ -438,26 +447,26 @@ function BinaryMarketCard({ market }: BinaryMarketCardProps) {
         </div>
 
         <div className="grid grid-cols-2 gap-2 md:gap-3">
-          <button className="p-3 md:p-4 rounded-lg border-2 border-secondary/50 hover:border-secondary bg-secondary/10 hover:bg-secondary/20 transition-colors text-left">
+          <button className="p-3 md:p-4 border border-cyan-500/30 hover:border-cyan-500/60 bg-cyan-500/5 hover:bg-cyan-500/10 transition-all duration-200 text-left">
             <div className="flex items-center justify-between mb-1 md:mb-2">
-              <span className="text-sm md:text-base font-semibold text-secondary">YES</span>
-              <span className="text-xl md:text-2xl font-bold text-secondary">
+              <span className="text-sm md:text-base font-semibold text-white">YES</span>
+              <span className="text-xl md:text-2xl font-bold text-cyan-400">
                 {(yesPrice * 100).toFixed(0)}¢
               </span>
             </div>
-            <div className="text-[10px] md:text-xs text-muted-foreground">
+            <div className="text-[10px] md:text-xs text-zinc-500 font-mono">
               {(yesPrice * 100).toFixed(1)}%
             </div>
           </button>
 
-          <button className="p-3 md:p-4 rounded-lg border-2 border-accent/50 hover:border-accent bg-accent/10 hover:bg-accent/20 transition-colors text-left">
+          <button className="p-3 md:p-4 border border-zinc-700/50 hover:border-zinc-600 bg-zinc-800/30 hover:bg-zinc-800/50 transition-all duration-200 text-left">
             <div className="flex items-center justify-between mb-1 md:mb-2">
-              <span className="text-sm md:text-base font-semibold text-accent">NO</span>
-              <span className="text-xl md:text-2xl font-bold text-accent">
+              <span className="text-sm md:text-base font-semibold text-white">NO</span>
+              <span className="text-xl md:text-2xl font-bold text-zinc-300">
                 {(noPrice * 100).toFixed(0)}¢
               </span>
             </div>
-            <div className="text-[10px] md:text-xs text-muted-foreground">
+            <div className="text-[10px] md:text-xs text-zinc-500 font-mono">
               {(noPrice * 100).toFixed(1)}%
             </div>
           </button>

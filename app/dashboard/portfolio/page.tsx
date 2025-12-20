@@ -5,7 +5,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Download, TrendingUp, TrendingDown, Activity, PieChart, AlertTriangle } from 'lucide-react';
+import { Download, TrendingUp, TrendingDown, Activity, PieChart, AlertTriangle, ArrowLeft } from 'lucide-react';
 import {
   getOpenPositions,
   getClosedPositions,
@@ -18,6 +18,8 @@ import {
   exportToCSV,
 } from '@/lib/portfolio/calculator';
 import { Position, ClosedPosition, Trade } from '@/lib/portfolio/types';
+import { DashboardNav } from '@/components/dashboard-nav';
+import Link from 'next/link';
 
 export default function PortfolioPage() {
   const { publicKey } = useWallet();
@@ -60,15 +62,28 @@ export default function PortfolioPage() {
 
   if (!publicKey) {
     return (
-      <div className="container mx-auto py-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Portfolio Analytics</CardTitle>
-            <CardDescription>
-              Connect your wallet to view your portfolio
-            </CardDescription>
-          </CardHeader>
-        </Card>
+      <div className="min-h-screen bg-background">
+        <DashboardNav />
+        <div className="lg:pl-64">
+          <div className="container mx-auto max-w-7xl px-4 py-8">
+            <div className="flex items-center gap-4 mb-6">
+              <Button variant="outline" size="icon" asChild>
+                <Link href="/dashboard">
+                  <ArrowLeft className="h-4 w-4" />
+                </Link>
+              </Button>
+              <h1 className="text-3xl font-bold">Portfolio Analytics</h1>
+            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Connect Wallet</CardTitle>
+                <CardDescription>
+                  Connect your wallet to view your portfolio
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
+        </div>
       </div>
     );
   }
@@ -77,17 +92,27 @@ export default function PortfolioPage() {
   const riskMetrics = calculateRiskMetrics(openPositions, summary.currentValue + 1000); // Assuming $1000 total balance for demo
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Portfolio Analytics</h1>
-          <p className="text-muted-foreground">Track your performance and manage risk</p>
-        </div>
-        <Button onClick={handleExportCSV} variant="outline">
-          <Download className="mr-2 h-4 w-4" />
-          Export CSV
-        </Button>
-      </div>
+    <div className="min-h-screen bg-background">
+      <DashboardNav />
+      <div className="lg:pl-64">
+        <div className="container mx-auto max-w-7xl px-4 py-8 space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button variant="outline" size="icon" asChild>
+                <Link href="/dashboard">
+                  <ArrowLeft className="h-4 w-4" />
+                </Link>
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold">Portfolio Analytics</h1>
+                <p className="text-muted-foreground">Track your performance and manage risk</p>
+              </div>
+            </div>
+            <Button onClick={handleExportCSV} variant="outline">
+              <Download className="mr-2 h-4 w-4" />
+              Export CSV
+            </Button>
+          </div>
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -433,6 +458,8 @@ export default function PortfolioPage() {
           </Card>
         </TabsContent>
       </Tabs>
+        </div>
+      </div>
     </div>
   );
 }

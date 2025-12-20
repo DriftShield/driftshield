@@ -45,14 +45,14 @@ export function DashboardNav() {
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col border-r border-border/50 bg-sidebar">
+      <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col border-r border-white/10 bg-zinc-950">
         <div className="flex flex-col flex-1 min-h-0">
           {/* Logo */}
-          <div className="flex items-center gap-2 h-16 px-6 border-b border-border/50">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">D</span>
-            </div>
-            <span className="text-xl font-bold">DriftShield</span>
+          <div className="flex items-center gap-3 h-16 px-6 border-b border-white/10">
+            <Link href="/" className="flex items-center justify-center w-8 h-8 bg-zinc-900 border border-white/5 rounded-sm hover:border-cyan-500/30 transition-colors group">
+                <div className="text-zinc-200 group-hover:text-cyan-400 transition-colors font-bold text-lg">D</div>
+            </Link>
+            <span className="text-lg font-medium tracking-tight text-white font-heading">DriftShield</span>
           </div>
 
           {/* Navigation */}
@@ -67,45 +67,45 @@ export function DashboardNav() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                    "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200 group",
                     isActive
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                      ? "bg-cyan-900/10 text-cyan-400 border border-cyan-500/10"
+                      : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent",
                   )}
                 >
-                  <item.icon className="w-5 h-5 flex-shrink-0" />
+                  <item.icon className={cn("w-4 h-4 flex-shrink-0 transition-colors", isActive ? "text-cyan-400" : "text-zinc-500 group-hover:text-zinc-300")} />
                   <span className="flex-1">{item.label}</span>
                   {item.badge && (
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge variant="secondary" className="text-xs bg-zinc-800 text-zinc-300 border-white/5">
                       {item.badge}
                     </Badge>
                   )}
-                  {isActive && <ChevronRight className="w-4 h-4" />}
+                  {isActive && <ChevronRight className="w-3 h-3 text-cyan-500/50" />}
                 </Link>
               )
             })}
           </nav>
 
           {/* User Section */}
-          <div className="p-4 border-t border-border/50">
+          <div className="p-4 border-t border-white/10 bg-zinc-950/50">
             <WalletButton />
           </div>
         </div>
       </aside>
 
       {/* Mobile Header */}
-      <header className="lg:hidden sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="lg:hidden sticky top-0 z-50 w-full border-b border-white/10 bg-black/90 backdrop-blur supports-[backdrop-filter]:bg-black/60">
         <div className="flex items-center justify-between h-16 px-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">D</span>
-            </div>
-            <span className="text-xl font-bold">DriftShield</span>
+            <Link href="/" className="flex items-center justify-center w-8 h-8 bg-zinc-900 border border-white/5 rounded-sm">
+                <div className="text-zinc-200 font-bold text-lg">D</div>
+            </Link>
+            <span className="text-lg font-bold text-white">DriftShield</span>
           </div>
 
           <div className="flex items-center gap-2">
             <WalletButton />
-            <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-zinc-400 hover:text-white">
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </Button>
           </div>
@@ -113,7 +113,7 @@ export function DashboardNav() {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="border-t border-border/50 bg-background p-4 space-y-1">
+          <div className="border-t border-white/10 bg-zinc-950 p-4 space-y-1">
             {navItems.map((item) => {
               // For /dashboard route, only match exact path
               const isActive = item.href === "/dashboard"
@@ -127,8 +127,8 @@ export function DashboardNav() {
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                     isActive
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-foreground/70 hover:bg-muted hover:text-foreground",
+                      ? "bg-cyan-900/10 text-cyan-400"
+                      : "text-zinc-400 hover:bg-white/5 hover:text-white",
                   )}
                 >
                   <item.icon className="w-5 h-5 flex-shrink-0" />

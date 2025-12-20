@@ -1,3 +1,5 @@
+'use client'
+
 import * as React from 'react'
 
 import { cn } from '@/lib/utils'
@@ -7,9 +9,16 @@ function Card({ className, ...props }: React.ComponentProps<'div'>) {
     <div
       data-slot="card"
       className={cn(
-        'bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm',
+        'card-spotlight card-lift bg-zinc-950 text-card-foreground flex flex-col gap-6 border border-white/10 py-6 shadow-sm hover:border-cyan-500/40',
         className,
       )}
+      onMouseMove={(e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        e.currentTarget.style.setProperty('--mouse-x', `${x}px`);
+        e.currentTarget.style.setProperty('--mouse-y', `${y}px`);
+      }}
       {...props}
     />
   )

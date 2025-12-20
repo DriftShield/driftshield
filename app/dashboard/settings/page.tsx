@@ -15,6 +15,8 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Bell, Shield, Wallet, User, Key, Mail, Moon, Zap, Check, ArrowLeft } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { DashboardNav } from "@/components/dashboard-nav"
+import Link from "next/link"
 
 interface UserProfile {
   firstName: string
@@ -258,21 +260,26 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-6 lg:p-8">
-      <div className="max-w-5xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-balance">Settings</h1>
-            <p className="text-muted-foreground mt-2">Manage your account preferences and configurations</p>
+    <div className="min-h-screen bg-background">
+      <DashboardNav />
+      <div className="lg:pl-64">
+        <div className="container mx-auto max-w-5xl px-4 py-8 space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button variant="outline" size="icon" asChild>
+                <Link href="/dashboard">
+                  <ArrowLeft className="h-4 w-4" />
+                </Link>
+              </Button>
+              <div>
+                <h1 className="text-3xl md:text-4xl font-bold text-balance">Settings</h1>
+                <p className="text-muted-foreground mt-2">Manage your account preferences and configurations</p>
+              </div>
+            </div>
           </div>
-          <Button variant="outline" onClick={() => router.push("/dashboard")} className="gap-2">
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
-          </Button>
-        </div>
 
-        <Tabs defaultValue="profile" className="space-y-6">
+          <Tabs defaultValue="profile" className="space-y-6">
           <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 gap-2">
             <TabsTrigger value="profile" className="gap-2">
               <User className="w-4 h-4" />
@@ -874,6 +881,7 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
         </Tabs>
+        </div>
       </div>
     </div>
   )

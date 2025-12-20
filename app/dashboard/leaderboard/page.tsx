@@ -16,10 +16,12 @@ import {
   ExternalLink,
   UserPlus,
   UserCheck,
+  ArrowLeft,
 } from 'lucide-react';
 import { getLeaderboard, isFollowing, followTrader, unfollowTrader } from '@/lib/social/service';
 import { LeaderboardEntry } from '@/lib/social/types';
 import Link from 'next/link';
+import { DashboardNav } from '@/components/dashboard-nav';
 
 export default function LeaderboardPage() {
   const { publicKey } = useWallet();
@@ -96,16 +98,26 @@ export default function LeaderboardPage() {
   };
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Trophy className="h-8 w-8" />
-            Leaderboard
-          </h1>
-          <p className="text-muted-foreground">Top performing traders on DriftShield</p>
-        </div>
-      </div>
+    <div className="min-h-screen bg-background">
+      <DashboardNav />
+      <div className="lg:pl-64">
+        <div className="container mx-auto max-w-7xl px-4 py-8 space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button variant="outline" size="icon" asChild>
+                <Link href="/dashboard">
+                  <ArrowLeft className="h-4 w-4" />
+                </Link>
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold flex items-center gap-2">
+                  <Trophy className="h-8 w-8" />
+                  Leaderboard
+                </h1>
+                <p className="text-muted-foreground">Top performing traders on DriftShield</p>
+              </div>
+            </div>
+          </div>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -311,6 +323,8 @@ export default function LeaderboardPage() {
           </div>
         </CardContent>
       </Card>
+        </div>
+      </div>
     </div>
   );
 }
