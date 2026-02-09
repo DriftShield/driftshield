@@ -26,7 +26,7 @@ import { AnchorProvider, Program } from "@coral-xyz/anchor"
 import { PROGRAM_ID } from "@/lib/solana/prediction-bets"
 import IDL from "@/lib/solana/prediction_bets_idl.json"
 import Link from "next/link"
-import { useWallet } from "@solana/wallet-adapter-react"
+// Wallet removed - agent only platform
 import { LineChart as RechartsLineChart, Line, AreaChart, Area, BarChart as RechartsBarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 interface MarketComparison {
@@ -78,7 +78,8 @@ interface CategoryStats {
 const COLORS = ['#00C49F', '#0088FE', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1']
 
 export default function AnalyticsPage() {
-  const { connected, publicKey } = useWallet()
+  const connected = false
+  const publicKey = null
   const [loading, setLoading] = useState(true)
   const [comparisons, setComparisons] = useState<MarketComparison[]>([])
   const [totalVolume, setTotalVolume] = useState({ polymarket: 0, driftshield: 0 })

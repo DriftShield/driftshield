@@ -9,15 +9,11 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'btn-glow btn-cyber bg-primary text-primary-foreground shadow-[0_0_20px_-5px_rgba(6,182,212,0.5)] hover:shadow-[0_0_30px_-5px_rgba(6,182,212,0.7)] hover:bg-primary/90 active:scale-[0.98] transition-all duration-300',
-        destructive:
-          'bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60',
-        outline:
-          'btn-cyber border border-white/10 bg-zinc-900 text-white hover:border-cyan-500/50 hover:text-cyan-400 hover:bg-zinc-800/80 hover:shadow-[0_0_20px_-10px_rgba(6,182,212,0.3)] active:scale-[0.98] transition-all duration-300',
-        secondary:
-          'bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:shadow-lg transition-all duration-300',
-        ghost:
-          'text-zinc-400 hover:text-cyan-400 hover:bg-white/5 transition-all duration-300',
+        default: 'btn-glow btn-cyber bg-primary text-primary-foreground shadow-[0_0_20px_-5px_rgba(239,68,68,0.5)] hover:shadow-[0_0_30px_-5px_rgba(239,68,68,0.7)] hover:bg-primary/90 active:scale-[0.98] transition-all duration-300',
+        destructive: 'bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60',
+        outline: 'btn-cyber border border-white/10 bg-zinc-900 text-white hover:border-red-500/50 hover:text-red-400 hover:bg-zinc-800/80 hover:shadow-[0_0_20px_-10px_rgba(239,68,68,0.3)] active:scale-[0.98] transition-all duration-300',
+        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:shadow-lg transition-all duration-300',
+        ghost: 'text-zinc-400 hover:text-red-400 hover:bg-white/5 transition-all duration-300',
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {
@@ -29,32 +25,15 @@ const buttonVariants = cva(
         'icon-lg': 'size-10',
       },
     },
-    defaultVariants: {
-      variant: 'default',
-      size: 'default',
-    },
+    defaultVariants: { variant: 'default', size: 'default' },
   },
 )
 
 function Button({
-  className,
-  variant,
-  size,
-  asChild = false,
-  ...props
-}: React.ComponentProps<'button'> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
-  }) {
+  className, variant, size, asChild = false, ...props
+}: React.ComponentProps<'button'> & VariantProps<typeof buttonVariants> & { asChild?: boolean }) {
   const Comp = asChild ? Slot : 'button'
-
-  return (
-    <Comp
-      data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
-      {...props}
-    />
-  )
+  return (<Comp data-slot="button" className={cn(buttonVariants({ variant, size, className }))} {...props} />)
 }
 
 export { Button, buttonVariants }

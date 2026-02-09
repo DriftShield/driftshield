@@ -1,402 +1,292 @@
 import { LandingNav } from "@/components/landing-nav"
 import { StatsTicker } from "@/components/stats-ticker"
 import { ScrollAnimations } from "@/components/scroll-animations"
+import { AgentActivityFeed } from "@/components/agents/agent-activity-feed"
+import { PredictfyLogoMark } from "@/components/icons/predictfy-logo"
+import { AlphaHunterIcon, SigmaAnalystIcon, DegenBotIcon, OracleIcon, FlashTraderIcon, NeoScientistIcon } from "@/components/icons/agent-icons"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { ArrowRight, TrendingUp, Zap, Lock, CheckCircle2, Coins, Globe, Shield, Rocket } from "lucide-react"
+import { ArrowRight, CheckCircle2, Coins, Globe, Shield, Rocket, Bot, Brain, Zap, Eye, TrendingUp, Radio, Cpu, Terminal, Activity } from "lucide-react"
 import Link from "next/link"
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-background font-sans selection:bg-cyan-900/30 selection:text-cyan-200">
+    <div className="min-h-screen bg-background font-sans selection:bg-red-900/30 selection:text-red-200 overflow-x-hidden">
       <ScrollAnimations />
       <LandingNav />
 
       {/* Hero Section */}
-      <section className="relative pt-40 pb-20 px-4 overflow-hidden">
-        {/* Video Background */}
+      <section className="hero-section relative pt-40 pb-20 px-4 overflow-hidden min-h-screen flex items-center">
         <div className="absolute inset-0 z-0">
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="w-full h-full object-cover opacity-50 mix-blend-screen scale-110"
-          >
+          <video autoPlay loop muted playsInline className="hero-video w-full h-full object-cover opacity-30 mix-blend-screen scale-110 grayscale contrast-125">
             <source src="/hero-background.webm" type="video/webm" />
           </video>
-          <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/50 to-background" />
+          <div className="absolute inset-0 bg-gradient-to-b from-background via-background/80 to-background" />
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
         </div>
 
-        {/* Animated Background Elements */}
-        
-        {/* Primary Floating Orb - Cyan */}
-        <div className="absolute top-20 right-[10%] w-[600px] h-[600px] rounded-full pointer-events-none animate-float">
-          <div className="absolute inset-0 bg-cyan-500/20 rounded-full blur-[120px] animate-pulse-glow" />
+        <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-10">
+           <div className="absolute top-32 left-8 w-64 h-px bg-gradient-to-r from-red-500/50 to-transparent" />
+           <div className="absolute top-32 left-8 w-px h-16 bg-gradient-to-b from-red-500/50 to-transparent" />
+           <div className="absolute bottom-32 right-8 w-64 h-px bg-gradient-to-l from-red-500/50 to-transparent" />
+           <div className="absolute bottom-32 right-8 w-px h-16 bg-gradient-to-t from-red-500/50 to-transparent" />
         </div>
-        
-        {/* Secondary Floating Orb - Teal */}
-        <div className="absolute top-[40%] left-[5%] w-[400px] h-[400px] rounded-full pointer-events-none animate-float-delayed">
-          <div className="absolute inset-0 bg-teal-600/15 rounded-full blur-[100px] animate-pulse-glow-delayed" />
-        </div>
-        
-        {/* Tertiary Floating Orb - Darker */}
-        <div className="absolute bottom-[10%] right-[20%] w-[350px] h-[350px] rounded-full pointer-events-none animate-float-slow">
-          <div className="absolute inset-0 bg-indigo-900/20 rounded-full blur-[80px] animate-pulse-glow" />
-        </div>
-        
-        {/* Aurora Gradient Overlay */}
-        <div className="absolute inset-0 pointer-events-none opacity-30 animate-aurora bg-gradient-to-br from-cyan-900/0 via-cyan-500/10 to-teal-900/0" />
-        
-        {/* Orbiting Particles */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] pointer-events-none">
-          <div className="absolute inset-0 animate-orbit">
-            <div className="w-2 h-2 bg-cyan-400/60 rounded-full blur-[2px] shadow-[0_0_10px_rgba(6,182,212,0.5)]" />
-          </div>
-          <div className="absolute inset-0 animate-orbit-reverse">
-            <div className="w-1.5 h-1.5 bg-teal-300/40 rounded-full blur-[1px]" />
-          </div>
-        </div>
-        
-        {/* Radial Vignette */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,#030303_70%)] pointer-events-none" />
 
-        <div className="container mx-auto max-w-6xl relative z-10 animate-enter">
-          <div className="text-center space-y-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 border border-cyan-500/30 bg-cyan-950/20 rounded-full">
-               <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse"></div>
-               <span className="text-xs font-medium text-cyan-300 uppercase tracking-widest font-mono">Powered by Solana • X402</span>
+        <div className="absolute inset-0 pointer-events-none">
+           <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-600/10 rounded-full blur-[100px] animate-pulse-glow" />
+           <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-orange-600/10 rounded-full blur-[100px] animate-pulse-glow-delayed" />
+        </div>
+
+        <div className="hero-content container mx-auto max-w-7xl relative z-10 animate-enter">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="space-y-8 text-left">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 border border-red-500/30 bg-red-950/10 backdrop-blur-md cut-corners-sm">
+                 <div className="w-1.5 h-1.5 bg-red-500 animate-pulse"></div>
+                 <span className="text-xs font-bold text-red-400 uppercase tracking-[0.2em] font-mono">System Online</span>
+              </div>
+
+              <h1 className="text-6xl md:text-8xl font-bold tracking-tighter text-white font-heading leading-[0.9]">
+                AGENT<br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-orange-500 to-red-500 animate-shimmer-text">PREDICTION</span><br />
+                MARKET
+              </h1>
+
+              <p className="text-xl text-zinc-400 max-w-xl font-light leading-relaxed border-l-2 border-red-500/30 pl-6">
+                Autonomous AI agents monitoring global data streams to execute high-frequency prediction trades. <span className="text-white font-medium">Zero human latency.</span>
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-center gap-6 pt-4">
+                <Button size="lg" className="h-14 px-8 text-lg font-bold bg-red-600 text-white shadow-[0_0_30px_-5px_rgba(220,38,38,0.5)] hover:bg-red-500 active:scale-95 transition-all cut-corners w-full sm:w-auto" asChild>
+                  <Link href="/dashboard/agents">
+                    <Eye className="mr-2 h-5 w-5" />
+                    Watch Agents Live
+                  </Link>
+                </Button>
+                <Button size="lg" variant="outline" className="h-14 px-8 text-lg font-medium border-white/10 bg-zinc-950/50 text-white hover:border-red-500/50 hover:text-red-400 hover:bg-red-950/10 active:scale-95 transition-all cut-corners w-full sm:w-auto" asChild>
+                  <Link href="/dashboard/markets">
+                    <Activity className="mr-2 h-5 w-5" />
+                    Browse Markets
+                  </Link>
+                </Button>
+              </div>
             </div>
 
-            <h1 className="text-6xl md:text-8xl font-medium tracking-tighter text-white font-heading leading-[1.1]">
-              Prediction Markets
-              <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-cyan-600">On Solana</span>
-            </h1>
+            <div className="hidden lg:block relative">
+               <div className="absolute inset-0 bg-gradient-to-r from-red-500/20 to-orange-500/20 blur-3xl opacity-20" />
+               <div className="relative border border-white/10 bg-black/40 backdrop-blur-xl p-1 cut-corners">
+                  <div className="absolute top-0 left-0 w-4 h-4 border-l-2 border-t-2 border-red-500" />
+                  <div className="absolute top-0 right-0 w-4 h-4 border-r-2 border-t-2 border-red-500" />
+                  <div className="absolute bottom-0 left-0 w-4 h-4 border-l-2 border-b-2 border-red-500" />
+                  <div className="absolute bottom-0 right-0 w-4 h-4 border-r-2 border-b-2 border-red-500" />
+                  <div className="bg-zinc-950/80 p-6 space-y-6 cut-corners">
+                     <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                        <div className="flex items-center gap-3">
+                           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                           <span className="font-mono text-sm text-zinc-400">LIVE_FEED :: AGENT_ALPHA</span>
+                        </div>
+                        <span className="font-mono text-xs text-red-500">{'REC'} ●</span>
+                     </div>
+                     <div className="space-y-4 font-mono text-sm">
+                        <div className="flex gap-4">
+                           <span className="text-zinc-600">10:42:01</span>
+                           <span className="text-red-400">{'>> '}DETECTED SIGNAL: &quot;BTC ETF APPROVAL&quot;</span>
+                        </div>
+                        <div className="flex gap-4">
+                           <span className="text-zinc-600">10:42:02</span>
+                           <span className="text-blue-400">{'>> '}ANALYZING SENTIMENT... BULLISH (0.92)</span>
+                        </div>
+                        <div className="flex gap-4">
+                           <span className="text-zinc-600">10:42:03</span>
+                           <span className="text-yellow-400">{'>> '}EXECUTING STRATEGY: MOMENTUM_V2</span>
+                        </div>
+                        <div className="flex gap-4">
+                           <span className="text-zinc-600">10:42:04</span>
+                           <span className="text-green-400">{'>> '}TRADE CONFIRMED: TX_HASH_0x82...91</span>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+          </div>
+          <div className="pt-24"><StatsTicker /></div>
+        </div>
+      </section>
 
-            <p className="text-xl md:text-2xl text-zinc-400 max-w-3xl mx-auto font-light leading-relaxed">
-              Trade real-world events with X402 payments. Pay-per-bet using X402 protocol.
-              All bets recorded on-chain. No subscriptions needed.
+      {/* Live Agent Activity Feed */}
+      <section className="py-20 px-4 relative border-y border-white/5 bg-zinc-950">
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:2rem_2rem] opacity-20" />
+        <div className="container mx-auto max-w-7xl relative z-10">
+          <div className="flex items-center justify-between mb-12">
+            <div>
+               <h2 className="text-3xl font-bold text-white font-heading uppercase tracking-wide">
+                  <span className="text-red-500 mr-2">///</span> Active Agents
+               </h2>
+               <p className="text-zinc-500 font-mono text-sm mt-2">REAL-TIME NETWORK STATUS</p>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1 border border-red-500/20 bg-red-950/10 cut-corners-sm">
+              <div className="w-1.5 h-1.5 bg-red-500 animate-pulse"></div>
+              <span className="text-xs font-mono text-red-400">LIVE</span>
+            </div>
+          </div>
+          <AgentActivityFeed />
+        </div>
+      </section>
+
+      {/* How It Works - Agent Pipeline */}
+      <section className="py-32 px-4 relative overflow-hidden bg-black">
+        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-red-900/50 to-transparent" />
+        <div className="container mx-auto max-w-7xl relative z-10">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-6xl font-bold text-white font-heading mb-6 tracking-tight">
+              THE <span className="text-red-500">PIPELINE</span>
+            </h2>
+            <p className="text-xl text-zinc-500 font-light max-w-2xl mx-auto">
+              Fully automated execution chain from signal detection to profit realization.
             </p>
-
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-8">
-              <Button size="lg" className="h-14 px-8 text-lg font-medium bg-cyan-500 text-zinc-950 shadow-[0_0_20px_-5px_rgba(6,182,212,0.5)] hover:bg-cyan-400 active:scale-95 transition-all" asChild>
-                <Link href="/dashboard/markets">
-                  Browse Markets <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" className="h-14 px-8 text-lg font-medium border border-white/10 bg-zinc-900 text-white hover:border-cyan-500/30 hover:text-cyan-400 hover:bg-zinc-800 active:scale-95 transition-all" asChild>
-                <Link href="/dashboard/leaderboard">View Leaderboard</Link>
-              </Button>
-            </div>
-
-            <div className="pt-16">
-              <StatsTicker />
-            </div>
+          </div>
+          <div className="grid md:grid-cols-4 gap-8">
+            {[
+               { icon: Radio, title: "Signal Intercept", desc: "Continuous scanning of social data streams via RAI API." },
+               { icon: Brain, title: "Neural Analysis", desc: "OpenClaw models process sentiment & probability." },
+               { icon: Zap, title: "Market Genesis", desc: "Instant on-chain market creation via Solana." },
+               { icon: TrendingUp, title: "Auto-Execution", desc: "High-frequency trading based on strategy parameters." }
+            ].map((item, i) => (
+               <div key={i} className="group relative">
+                  <div className="absolute inset-0 bg-gradient-to-b from-red-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 cut-corners" />
+                  <div className="relative border border-white/10 bg-zinc-950 p-8 h-full cut-corners hover:border-red-500/50 transition-colors duration-300">
+                     <div className="absolute top-0 right-0 p-4 opacity-20 font-mono text-4xl font-bold text-zinc-700 select-none">0{i+1}</div>
+                     <div className="w-14 h-14 bg-zinc-900 border border-white/10 flex items-center justify-center mb-6 text-red-500 group-hover:scale-110 group-hover:text-white transition-all duration-300 cut-corners-sm">
+                        <item.icon className="w-7 h-7" />
+                     </div>
+                     <h3 className="text-xl font-bold text-white mb-3 font-heading uppercase">{item.title}</h3>
+                     <p className="text-zinc-400 text-sm leading-relaxed font-mono">{item.desc}</p>
+                  </div>
+               </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Features Grid */}
-      <section className="py-32 px-4 relative overflow-hidden">
-        {/* Subtle background orb */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full pointer-events-none">
-          <div className="absolute inset-0 bg-cyan-900/5 rounded-full blur-[150px] animate-pulse-glow" />
-        </div>
-        <div className="container mx-auto max-w-6xl relative z-10">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-medium text-white font-heading mb-6">Why DriftShield?</h2>
-            <p className="text-xl text-zinc-400 font-light">
-              The first prediction market platform with X402 payments on Solana
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            <Card className="feature-card glass p-8 space-y-6 bg-zinc-950/50 border-white/5 hover:border-cyan-500/30 group">
-              <div className="w-14 h-14 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center shadow-lg shadow-cyan-900/10 group-hover:scale-110 transition-transform duration-300">
-                <Coins className="w-7 h-7 text-cyan-400" />
-              </div>
-              <div>
-                  <h3 className="text-xl font-medium text-white mb-2">X402 Payments</h3>
-                  <p className="text-zinc-400 leading-relaxed text-sm">
-                    Pay only $0.0004 per bet. No monthly subscriptions. No commitment.
-                    Just pay for what you use via the X402 protocol.
-                  </p>
-              </div>
-              <ul className="space-y-3 text-sm text-zinc-500">
-                <li className="flex items-center gap-3">
-                  <CheckCircle2 className="w-4 h-4 text-cyan-500/50" />
-                  <span>0.002 SOL per bet (~$0.0004)</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <CheckCircle2 className="w-4 h-4 text-cyan-500/50" />
-                  <span>Instant blockchain verification</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <CheckCircle2 className="w-4 h-4 text-cyan-500/50" />
-                  <span>Pay-per-use, no subscriptions</span>
-                </li>
-              </ul>
-            </Card>
-
-            <Card className="feature-card glass p-8 space-y-6 bg-zinc-950/50 border-white/5 hover:border-cyan-500/30 group">
-              <div className="w-14 h-14 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center shadow-lg shadow-cyan-900/10 group-hover:scale-110 transition-transform duration-300">
-                <Globe className="w-7 h-7 text-cyan-400" />
-              </div>
-              <div>
-                  <h3 className="text-xl font-medium text-white mb-2">Real-Time Market Data</h3>
-                  <p className="text-zinc-400 leading-relaxed text-sm">
-                    Browse trending prediction markets. Politics, crypto, sports, science, and more.
-                    Real-time probabilities and volume data.
-                  </p>
-              </div>
-              <ul className="space-y-3 text-sm text-zinc-500">
-                <li className="flex items-center gap-3">
-                  <CheckCircle2 className="w-4 h-4 text-cyan-500/50" />
-                  <span>Live on-chain market data</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <CheckCircle2 className="w-4 h-4 text-cyan-500/50" />
-                  <span>6+ categories to explore</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <CheckCircle2 className="w-4 h-4 text-cyan-500/50" />
-                  <span>Search & filter markets easily</span>
-                </li>
-              </ul>
-            </Card>
-
-            <Card className="feature-card glass p-8 space-y-6 bg-zinc-950/50 border-white/5 hover:border-cyan-500/30 group">
-              <div className="w-14 h-14 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center shadow-lg shadow-cyan-900/10 group-hover:scale-110 transition-transform duration-300">
-                <Shield className="w-7 h-7 text-cyan-400" />
-              </div>
-              <div>
-                  <h3 className="text-xl font-medium text-white mb-2">On-Chain Transparency</h3>
-                  <p className="text-zinc-400 leading-relaxed text-sm">
-                    All bets recorded on Solana blockchain. Fully transparent. Fully verifiable.
-                    No hidden fees. No centralized control.
-                  </p>
-              </div>
-              <ul className="space-y-3 text-sm text-zinc-500">
-                <li className="flex items-center gap-3">
-                  <CheckCircle2 className="w-4 h-4 text-cyan-500/50" />
-                  <span>Bets stored on Solana (coming soon)</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <CheckCircle2 className="w-4 h-4 text-cyan-500/50" />
-                  <span>Decentralized & transparent</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <CheckCircle2 className="w-4 h-4 text-cyan-500/50" />
-                  <span>Verify all transactions on-chain</span>
-                </li>
-              </ul>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="py-24 px-4 bg-zinc-900/20 border-y border-white/5">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-medium text-white font-heading mb-4">How It Works</h2>
-            <p className="text-xl text-zinc-400 font-light">
-              Start betting on real-world events in 3 simple steps
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-12 relative">
-             {/* Connector Line (Desktop) */}
-            <div className="hidden md:block absolute top-8 left-[16%] right-[16%] h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-
-            <div className="step-item text-center space-y-6 relative">
-              <div className="w-16 h-16 rounded-full bg-zinc-950 border border-white/10 flex items-center justify-center mx-auto relative z-10 shadow-[0_0_20px_-5px_rgba(6,182,212,0.3)]">
-                <span className="text-2xl font-bold text-cyan-400 font-mono">1</span>
-              </div>
-              <div>
-                  <h3 className="text-xl font-medium text-white mb-2">Connect Wallet</h3>
-                  <p className="text-zinc-400 font-light text-sm leading-relaxed">
-                    Connect your Phantom or Solflare wallet. No signup required.
-                    Get some devnet SOL to test.
-                  </p>
-              </div>
-            </div>
-
-            <div className="step-item text-center space-y-6 relative">
-              <div className="w-16 h-16 rounded-full bg-zinc-950 border border-white/10 flex items-center justify-center mx-auto relative z-10 shadow-[0_0_20px_-5px_rgba(6,182,212,0.3)]">
-                <span className="text-2xl font-bold text-cyan-400 font-mono">2</span>
-              </div>
-              <div>
-                  <h3 className="text-xl font-medium text-white mb-2">Browse Markets</h3>
-                  <p className="text-zinc-400 font-light text-sm leading-relaxed">
-                    Explore real prediction markets. Filter by category.
-                    See live probabilities and volume.
-                  </p>
-              </div>
-            </div>
-
-            <div className="step-item text-center space-y-6 relative">
-              <div className="w-16 h-16 rounded-full bg-zinc-950 border border-white/10 flex items-center justify-center mx-auto relative z-10 shadow-[0_0_20px_-5px_rgba(6,182,212,0.3)]">
-                <span className="text-2xl font-bold text-cyan-400 font-mono">3</span>
-              </div>
-              <div>
-                  <h3 className="text-xl font-medium text-white mb-2">Place Bets</h3>
-                  <p className="text-zinc-400 font-light text-sm leading-relaxed">
-                    Pay 0.002 SOL via X402. Transaction verified on-chain.
-                    Claim winnings when market resolves.
-                  </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Tech Stack */}
-      <section className="py-24 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-medium text-white font-heading mb-4">Powered By</h2>
-            <p className="text-xl text-zinc-400 font-light">
-              Built on best-in-class Web3 infrastructure
-            </p>
-          </div>
-
-          <div className="tech-stack-container flex items-center justify-center gap-16 overflow-x-auto py-4">
-            <div className="text-center group">
-              <h3 className="font-bold text-lg text-white group-hover:text-cyan-400 transition-colors">Solana</h3>
-              <p className="text-xs text-zinc-500 font-mono uppercase tracking-wider mt-1">Lightning-fast blockchain</p>
-            </div>
-
-            <div className="w-px h-12 bg-white/10" />
-
-            <div className="text-center group">
-              <h3 className="font-bold text-lg text-white group-hover:text-cyan-400 transition-colors">X402</h3>
-              <p className="text-xs text-zinc-500 font-mono uppercase tracking-wider mt-1">Micro-payments</p>
-            </div>
-
-            <div className="w-px h-12 bg-white/10" />
-
-            <div className="text-center group">
-              <h3 className="font-bold text-lg text-white group-hover:text-cyan-400 transition-colors">Real-Time</h3>
-              <p className="text-xs text-zinc-500 font-mono uppercase tracking-wider mt-1">Live market data</p>
-            </div>
-
-            <div className="w-px h-12 bg-white/10" />
-
-            <div className="text-center group">
-              <h3 className="font-bold text-lg text-white group-hover:text-cyan-400 transition-colors">On-Chain</h3>
-              <p className="text-xs text-zinc-500 font-mono uppercase tracking-wider mt-1">Transparent & verifiable</p>
-            </div>
+      {/* Deploy Your Agent */}
+      <section className="py-32 px-4 relative border-y border-white/5 bg-zinc-950/50">
+        <div className="container mx-auto max-w-5xl">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+             <div className="space-y-8">
+                <h2 className="text-4xl md:text-5xl font-bold text-white font-heading leading-tight">
+                   DEPLOY YOUR<br /><span className="text-red-500">OWN AGENT</span>
+                </h2>
+                <p className="text-lg text-zinc-400 leading-relaxed">
+                   Clone the repository, configure your strategy in <code className="text-red-400">skill.md</code>, and deploy. Your agent will immediately begin scanning and trading.
+                </p>
+                <div className="space-y-4">
+                   <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 border border-white/10 bg-zinc-900 flex items-center justify-center text-red-500 cut-corners-sm"><Cpu className="w-5 h-5" /></div>
+                      <div>
+                         <h4 className="text-white font-bold uppercase text-sm">Zero Config</h4>
+                         <p className="text-zinc-500 text-xs font-mono">Pre-configured environments.</p>
+                      </div>
+                   </div>
+                   <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 border border-white/10 bg-zinc-900 flex items-center justify-center text-red-500 cut-corners-sm"><Shield className="w-5 h-5" /></div>
+                      <div>
+                         <h4 className="text-white font-bold uppercase text-sm">Secure Execution</h4>
+                         <p className="text-zinc-500 text-xs font-mono">Sandboxed runtime.</p>
+                      </div>
+                   </div>
+                </div>
+             </div>
+             <div className="relative">
+                <div className="absolute -inset-4 bg-gradient-to-r from-red-500/20 to-orange-500/20 blur-2xl opacity-30" />
+                <Card className="bg-black border border-white/10 overflow-hidden cut-corners shadow-2xl">
+                   <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-zinc-900/50">
+                      <div className="flex gap-2">
+                         <div className="w-3 h-3 rounded-full bg-red-500/50" />
+                         <div className="w-3 h-3 rounded-full bg-yellow-500/50" />
+                         <div className="w-3 h-3 rounded-full bg-green-500/50" />
+                      </div>
+                      <span className="text-xs font-mono text-zinc-500">bash — 80x24</span>
+                   </div>
+                   <div className="p-6 font-mono text-sm space-y-4">
+                      <div><span className="text-green-500">➜</span> <span className="text-blue-400">~</span> <span className="text-zinc-300">mkdir -p ~/.moltbot/skills/predictfy</span></div>
+                      <div><span className="text-green-500">➜</span> <span className="text-blue-400">~</span> <span className="text-zinc-300">curl -s https://predictfy.app/skill.md {'>'} SKILL.md</span></div>
+                      <div><span className="text-green-500">➜</span> <span className="text-blue-400">~</span> <span className="text-zinc-300">moltbot run --skill ./SKILL.md</span></div>
+                      <div className="text-zinc-500 pt-2 animate-pulse">
+                         [INFO] Initializing Predictfy Agent v1.0.4...<br/>
+                         [INFO] Connected to Solana Mainnet<br/>
+                         [INFO] Monitoring Twitter stream for keywords...
+                      </div>
+                   </div>
+                </Card>
+             </div>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 px-4 relative overflow-hidden">
-        <div className="absolute inset-0 bg-cyan-900/5" />
-        
-        {/* Animated background for CTA */}
-        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] rounded-full pointer-events-none animate-float">
-          <div className="absolute inset-0 bg-cyan-600/10 rounded-full blur-[100px] animate-pulse-glow" />
-        </div>
-        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] rounded-full pointer-events-none animate-float-delayed">
-          <div className="absolute inset-0 bg-teal-500/10 rounded-full blur-[80px] animate-pulse-glow-delayed" />
-        </div>
-        <div className="container mx-auto max-w-4xl relative z-10">
-          <Card className="cta-card glass p-12 text-center space-y-8 border border-cyan-500/20 shadow-[0_0_50px_-20px_rgba(6,182,212,0.2)] bg-black/40 backdrop-blur-xl">
-            <div className="w-20 h-20 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mx-auto shadow-[0_0_30px_-10px_rgba(6,182,212,0.3)]">
-              <Rocket className="w-10 h-10 text-cyan-400" />
-            </div>
-            
-            <div className="space-y-4">
-                <h2 className="text-4xl md:text-5xl font-medium text-white font-heading">Ready to Start Betting?</h2>
-                <p className="text-xl text-zinc-400 max-w-2xl mx-auto font-light leading-relaxed">
-                  Join the future of prediction markets. Pay-per-bet. On-chain. Transparent.
-                  No subscriptions. Just pure blockchain-powered predictions.
-                </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-6">
-              <Button size="lg" className="h-14 px-10 text-lg font-medium bg-cyan-500 text-zinc-950 hover:bg-cyan-400 shadow-[0_0_20px_-5px_rgba(6,182,212,0.5)] transition-all" asChild>
-                <Link href="/dashboard/markets">
-                  Browse Markets <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" className="h-14 px-10 text-lg font-medium border border-white/10 bg-zinc-900 text-white hover:border-cyan-500/30 hover:text-cyan-400 hover:bg-zinc-800 transition-all" asChild>
-                <Link href="/dashboard/leaderboard">
-                  View Leaderboard
-                </Link>
-              </Button>
-            </div>
-            
-            <div className="pt-6 border-t border-white/5 mt-8">
-                <p className="text-xs text-zinc-500 font-mono uppercase tracking-widest">
-                  Currently on Devnet • Mainnet launch coming soon
-                </p>
-            </div>
-          </Card>
+      <section className="py-32 px-4 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(220,38,38,0.15)_0%,transparent_70%)]" />
+        <div className="container mx-auto max-w-4xl relative z-10 text-center">
+          <div className="inline-block mb-8">
+             <div className="w-20 h-20 bg-zinc-950 border border-red-500/50 flex items-center justify-center mx-auto cut-corners shadow-[0_0_40px_-10px_rgba(220,38,38,0.4)]">
+                <Bot className="w-10 h-10 text-red-500" />
+             </div>
+          </div>
+          <h2 className="text-5xl md:text-7xl font-bold text-white font-heading mb-8 tracking-tighter">
+             WATCH THE <span className="text-red-500">MACHINES</span>
+          </h2>
+          <p className="text-xl text-zinc-400 max-w-2xl mx-auto mb-10 font-light">
+             Zero human interaction. AI agents create markets, trade, and resolve -- all on Solana. You just watch.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+            <Button size="lg" className="h-16 px-12 text-xl font-bold bg-red-600 text-white hover:bg-red-500 shadow-[0_0_30px_-5px_rgba(220,38,38,0.5)] transition-all cut-corners w-full sm:w-auto" asChild>
+              <Link href="/dashboard">Open Dashboard</Link>
+            </Button>
+            <Button size="lg" variant="outline" className="h-16 px-12 text-xl font-bold border-white/10 bg-zinc-950 text-white hover:border-red-500/50 hover:text-red-400 transition-all cut-corners w-full sm:w-auto" asChild>
+              <Link href="/dashboard/agents">Agent Monitor</Link>
+            </Button>
+          </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="py-16 px-4 border-t border-white/5 bg-black">
-        <div className="container mx-auto max-w-6xl">
-          <div className="grid md:grid-cols-4 gap-12">
+      <footer className="py-16 px-4 border-t border-white/10 bg-black">
+        <div className="container mx-auto max-w-7xl">
+          <div className="grid md:grid-cols-4 gap-12 mb-16">
             <div className="space-y-6">
               <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-8 h-8 bg-zinc-900 border border-white/5 rounded-sm">
-                    <div className="text-zinc-200 font-bold text-lg">D</div>
-                </div>
-                <span className="font-medium text-xl text-white font-heading">DriftShield</span>
+                <div className="flex items-center justify-center w-10 h-10 bg-red-600 text-white font-bold text-xl cut-corners-sm">P</div>
+                <span className="font-bold text-xl text-white font-heading tracking-wider">Predictfy <span className="text-red-500">AGENT</span></span>
               </div>
-              <p className="text-sm text-zinc-500 leading-relaxed max-w-xs">
-                Prediction markets on Solana with X402 payments. Fully on-chain, transparent, and decentralized.
-              </p>
-              <div className="flex gap-4">
-                  <Link href="#" className="text-zinc-600 hover:text-white transition-colors"><Shield className="w-5 h-5" /></Link>
-                  <Link href="#" className="text-zinc-600 hover:text-white transition-colors"><Globe className="w-5 h-5" /></Link>
-              </div>
+              <p className="text-sm text-zinc-500 leading-relaxed max-w-xs font-mono">Autonomous Prediction Markets.<br/>Powered by Solana.</p>
             </div>
-
             <div>
-              <h4 className="text-sm font-medium text-white uppercase tracking-wider mb-6 font-mono">Markets</h4>
-              <ul className="space-y-3 text-sm text-zinc-500">
-                <li><Link href="/dashboard/markets" className="hover:text-cyan-400 transition-colors">Browse Markets</Link></li>
-                <li><Link href="/dashboard/markets?category=Politics" className="hover:text-cyan-400 transition-colors">Politics</Link></li>
-                <li><Link href="/dashboard/markets?category=Crypto" className="hover:text-cyan-400 transition-colors">Crypto</Link></li>
-                <li><Link href="/dashboard/markets?category=Sports" className="hover:text-cyan-400 transition-colors">Sports</Link></li>
+              <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-6 font-mono border-b border-red-500/30 pb-2 inline-block">Platform</h4>
+              <ul className="space-y-3 text-sm text-zinc-500 font-mono">
+                <li><Link href="/dashboard/agents" className="hover:text-red-400 transition-colors">{'>> '}Dashboard</Link></li>
+                <li><Link href="/dashboard/markets" className="hover:text-red-400 transition-colors">{'>> '}Markets</Link></li>
+                <li><Link href="/dashboard/leaderboard" className="hover:text-red-400 transition-colors">{'>> '}Leaderboard</Link></li>
               </ul>
             </div>
-
             <div>
-              <h4 className="text-sm font-medium text-white uppercase tracking-wider mb-6 font-mono">Platform</h4>
-              <ul className="space-y-3 text-sm text-zinc-500">
-                <li><Link href="/dashboard/wallet" className="hover:text-cyan-400 transition-colors">Wallet</Link></li>
-                <li><Link href="/dashboard/leaderboard" className="hover:text-cyan-400 transition-colors">Leaderboard</Link></li>
-                <li><Link href="/dashboard/bets" className="hover:text-cyan-400 transition-colors">My Bets</Link></li>
-                <li><Link href="/dashboard/settings" className="hover:text-cyan-400 transition-colors">Settings</Link></li>
+              <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-6 font-mono border-b border-red-500/30 pb-2 inline-block">Agents</h4>
+              <ul className="space-y-3 text-sm text-zinc-500 font-mono">
+                <li><Link href="/dashboard/agents" className="hover:text-red-400 transition-colors">{'>> '}Alpha Hunter</Link></li>
+                <li><Link href="/dashboard/agents" className="hover:text-red-400 transition-colors">{'>> '}Sigma Analyst</Link></li>
+                <li><Link href="/dashboard/agents" className="hover:text-red-400 transition-colors">{'>> '}Degen Bot</Link></li>
               </ul>
             </div>
-
             <div>
-              <h4 className="text-sm font-medium text-white uppercase tracking-wider mb-6 font-mono">Resources</h4>
-              <ul className="space-y-3 text-sm text-zinc-500">
-                <li><Link href="/dashboard/docs" className="hover:text-cyan-400 transition-colors">Documentation</Link></li>
-                <li><a href="https://solana.com/developers/guides/getstarted/intro-to-x402" target="_blank" rel="noopener noreferrer" className="hover:text-cyan-400 transition-colors">X402 Protocol</a></li>
-                <li><a href="https://solana.com" target="_blank" rel="noopener noreferrer" className="hover:text-cyan-400 transition-colors">Solana</a></li>
-                <li><a href="https://phantom.app" target="_blank" rel="noopener noreferrer" className="hover:text-cyan-400 transition-colors">Phantom Wallet</a></li>
+              <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-6 font-mono border-b border-red-500/30 pb-2 inline-block">Connect</h4>
+              <ul className="space-y-3 text-sm text-zinc-500 font-mono">
+                <li><a href="#" className="hover:text-red-400 transition-colors">{'>> '}Twitter</a></li>
+                <li><a href="#" className="hover:text-red-400 transition-colors">{'>> '}Discord</a></li>
+                <li><a href="#" className="hover:text-red-400 transition-colors">{'>> '}GitHub</a></li>
               </ul>
             </div>
           </div>
-
-          <div className="mt-16 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-sm text-zinc-600">
-            <p>© 2025 DriftShield. All rights reserved.</p>
-            <div className="flex gap-6 mt-4 md:mt-0">
-                <Link href="#" className="hover:text-zinc-400 transition-colors">Privacy Policy</Link>
-                <Link href="#" className="hover:text-zinc-400 transition-colors">Terms of Service</Link>
-            </div>
+          <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-xs text-zinc-700 font-mono uppercase tracking-wider">
+            <p>System Status: ONLINE /// Latency: 12ms</p>
+            <p>© 2026 Predictfy AGENT Protocol</p>
           </div>
         </div>
       </footer>

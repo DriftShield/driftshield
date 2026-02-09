@@ -3,41 +3,13 @@
 import { DashboardNav } from "@/components/dashboard-nav"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { TrendingUp, DollarSign, ArrowUpRight, Plus, Trophy, Activity } from "lucide-react"
+import { TrendingUp, Trophy, Activity, Bot, BarChart3, Eye } from "lucide-react"
 import Link from "next/link"
-import { useWallet } from "@solana/wallet-adapter-react"
-import { useEffect, useState } from "react"
+import { AgentActivityFeed } from "@/components/agents/agent-activity-feed"
 
 export default function DashboardPage() {
-  const { connected, publicKey } = useWallet()
-  const [stats, setStats] = useState({
-    activeBets: 0,
-    totalStaked: 0,
-    potentialWinnings: 0,
-    marketsParticipated: 0
-  })
-
-  useEffect(() => {
-    if (connected && publicKey) {
-      // Fetch user stats from on-chain data
-      fetchUserStats()
-    }
-  }, [connected, publicKey])
-
-  const fetchUserStats = async () => {
-    // TODO: Implement real on-chain data fetching
-    // For now, showing placeholder that will be replaced with real data
-    setStats({
-      activeBets: 0,
-      totalStaked: 0,
-      potentialWinnings: 0,
-      marketsParticipated: 0
-    })
-  }
-
   return (
-    <div className="min-h-screen bg-background font-sans selection:bg-cyan-900/30 selection:text-cyan-200">
+    <div className="min-h-screen bg-background font-sans selection:bg-red-900/30 selection:text-red-200">
       <DashboardNav />
 
       <div className="lg:pl-64">
@@ -45,124 +17,131 @@ export default function DashboardPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-white/5 pb-8">
           <div>
-            <h1 className="text-4xl font-medium text-white font-heading tracking-tight">Dashboard</h1>
-            <p className="text-zinc-400 mt-2 font-light">Track your prediction markets and betting activity</p>
+            <h1 className="text-4xl font-bold text-white font-heading tracking-tight uppercase">Agent Network</h1>
+            <p className="text-zinc-500 mt-2 font-mono text-sm">AUTONOMOUS PREDICTION MARKET SYSTEM // REAL-TIME OVERVIEW</p>
           </div>
-          <div className="flex items-center gap-3">
-            <Button size="lg" className="gap-2 bg-cyan-500 hover:bg-cyan-400 text-zinc-950 font-medium shadow-[0_0_20px_-5px_rgba(6,182,212,0.4)]" asChild>
-              <Link href="/dashboard/markets">
-                <Plus className="w-4 h-4" />
-                Browse Markets
-              </Link>
-            </Button>
+          <div className="flex items-center gap-2 px-3 py-1.5 border border-red-500/20 bg-red-950/10 cut-corners-sm">
+            <div className="w-1.5 h-1.5 bg-green-500 animate-pulse" />
+            <span className="text-xs font-mono text-green-400 uppercase">All Systems Online</span>
           </div>
         </div>
 
-        {/* Stats Grid */}
-        {!connected ? (
-          <Card className="glass-card p-12 text-center border-dashed border-white/10 bg-zinc-900/30">
-            <p className="text-zinc-400 mb-6 font-light text-lg">Connect your wallet to view your dashboard</p>
-            <Button asChild className="bg-white text-black hover:bg-zinc-200">
-              <Link href="/dashboard/markets">Browse Markets</Link>
-            </Button>
+        {/* Agent Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="bg-zinc-950 border border-white/10 p-6 space-y-4 cut-corners group">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-zinc-500 font-mono font-bold uppercase tracking-widest">Active Agents</span>
+              <div className="w-8 h-8 bg-zinc-900 border border-white/5 flex items-center justify-center cut-corners-sm">
+                  <Bot className="w-4 h-4 text-red-500" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-3xl font-bold text-white font-mono">6</div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 bg-green-500 animate-pulse" />
+                <span className="text-[10px] text-green-400 font-mono">ALL ONLINE</span>
+              </div>
+            </div>
           </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card className="glass-card p-6 space-y-4 hover:border-cyan-500/30 transition-colors group">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-500 font-medium uppercase tracking-wider">Active Bets</span>
-                <div className="p-2 bg-zinc-900 rounded-md border border-white/5 group-hover:border-cyan-500/20 transition-colors">
-                    <Activity className="w-4 h-4 text-cyan-400" />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <div className="text-3xl font-medium text-white">{stats.activeBets}</div>
-                <div className="text-xs text-zinc-500">In open markets</div>
-              </div>
-            </Card>
 
-            <Card className="glass-card p-6 space-y-4 hover:border-cyan-500/30 transition-colors group">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-500 font-medium uppercase tracking-wider">Total Staked</span>
-                <div className="p-2 bg-zinc-900 rounded-md border border-white/5 group-hover:border-cyan-500/20 transition-colors">
-                    <DollarSign className="w-4 h-4 text-emerald-400" />
-                </div>
+          <Card className="bg-zinc-950 border border-white/10 p-6 space-y-4 cut-corners group">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-zinc-500 font-mono font-bold uppercase tracking-widest">Markets Created</span>
+              <div className="w-8 h-8 bg-zinc-900 border border-white/5 flex items-center justify-center cut-corners-sm">
+                  <BarChart3 className="w-4 h-4 text-red-500" />
               </div>
-              <div className="space-y-1">
-                <div className="text-3xl font-medium text-white">{stats.totalStaked} SOL</div>
-                <div className="text-xs text-zinc-500">Across all markets</div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-3xl font-bold text-white font-mono">47</div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-zinc-500 font-mono">+3 TODAY</span>
               </div>
-            </Card>
+            </div>
+          </Card>
 
-            <Card className="glass-card p-6 space-y-4 hover:border-cyan-500/30 transition-colors group">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-500 font-medium uppercase tracking-wider">Potential Winnings</span>
-                <div className="p-2 bg-zinc-900 rounded-md border border-white/5 group-hover:border-cyan-500/20 transition-colors">
-                    <TrendingUp className="w-4 h-4 text-violet-400" />
-                </div>
+          <Card className="bg-zinc-950 border border-white/10 p-6 space-y-4 cut-corners group">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-zinc-500 font-mono font-bold uppercase tracking-widest">Total Volume</span>
+              <div className="w-8 h-8 bg-zinc-900 border border-white/5 flex items-center justify-center cut-corners-sm">
+                  <TrendingUp className="w-4 h-4 text-red-500" />
               </div>
-              <div className="space-y-1">
-                <div className="text-3xl font-medium text-white">{stats.potentialWinnings} SOL</div>
-                <div className="text-xs text-zinc-500">If all bets win</div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-3xl font-bold text-white font-mono">$12.4K</div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-green-400 font-mono">+8.2% 24H</span>
               </div>
-            </Card>
+            </div>
+          </Card>
 
-            <Card className="glass-card p-6 space-y-4 hover:border-cyan-500/30 transition-colors group">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-500 font-medium uppercase tracking-wider">Markets</span>
-                <div className="p-2 bg-zinc-900 rounded-md border border-white/5 group-hover:border-cyan-500/20 transition-colors">
-                    <Trophy className="w-4 h-4 text-amber-400" />
-                </div>
+          <Card className="bg-zinc-950 border border-white/10 p-6 space-y-4 cut-corners group">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-zinc-500 font-mono font-bold uppercase tracking-widest">Trades Today</span>
+              <div className="w-8 h-8 bg-zinc-900 border border-white/5 flex items-center justify-center cut-corners-sm">
+                  <Activity className="w-4 h-4 text-red-500" />
               </div>
-              <div className="space-y-1">
-                <div className="text-3xl font-medium text-white">{stats.marketsParticipated}</div>
-                <div className="text-xs text-zinc-500">Participated in</div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-3xl font-bold text-white font-mono">234</div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-zinc-500 font-mono">AVG 12/HR</span>
               </div>
-            </Card>
-          </div>
-        )}
+            </div>
+          </Card>
+        </div>
 
-        {/* Quick Actions */}
-        <Card className="glass-card p-8 bg-zinc-900/20">
-          <h2 className="text-xl font-medium text-white mb-6 font-heading">Quick Actions</h2>
-
+        {/* Quick Access */}
+        <Card className="bg-zinc-950 border border-white/10 p-8 cut-corners">
+          <h2 className="text-xl font-bold text-white mb-6 font-heading uppercase tracking-wide">Quick Access</h2>
           <div className="grid md:grid-cols-3 gap-6">
-            <Button variant="outline" className="w-full justify-start gap-4 h-auto py-6 bg-zinc-950/50 border-white/5 hover:bg-zinc-900 hover:border-cyan-500/30 transition-all group" asChild>
+            <Button variant="outline" className="w-full justify-start gap-4 h-auto py-6 bg-zinc-950/50 border-white/5 hover:bg-zinc-900 hover:border-red-500/30 transition-all group cut-corners" asChild>
+              <Link href="/dashboard/agents">
+                <div className="w-12 h-12 bg-zinc-900 border border-white/10 flex items-center justify-center group-hover:border-red-500/20 transition-colors cut-corners-sm">
+                  <Eye className="w-6 h-6 text-red-500" />
+                </div>
+                <div className="text-left flex-1">
+                  <div className="font-bold text-white text-base font-mono uppercase">Agent Monitor</div>
+                  <div className="text-xs text-zinc-500 mt-1 font-mono">Watch live agent activity</div>
+                </div>
+              </Link>
+            </Button>
+
+            <Button variant="outline" className="w-full justify-start gap-4 h-auto py-6 bg-zinc-950/50 border-white/5 hover:bg-zinc-900 hover:border-red-500/30 transition-all group cut-corners" asChild>
               <Link href="/dashboard/markets">
-                <div className="w-12 h-12 rounded-lg bg-zinc-900 border border-white/10 flex items-center justify-center group-hover:border-cyan-500/20 transition-colors">
-                  <TrendingUp className="w-6 h-6 text-cyan-400" />
+                <div className="w-12 h-12 bg-zinc-900 border border-white/10 flex items-center justify-center group-hover:border-red-500/20 transition-colors cut-corners-sm">
+                  <TrendingUp className="w-6 h-6 text-red-500" />
                 </div>
                 <div className="text-left flex-1">
-                  <div className="font-medium text-white text-base">Browse Markets</div>
-                  <div className="text-xs text-zinc-500 mt-1">Place bets on events</div>
+                  <div className="font-bold text-white text-base font-mono uppercase">Markets</div>
+                  <div className="text-xs text-zinc-500 mt-1 font-mono">Browse agent-created markets</div>
                 </div>
               </Link>
             </Button>
 
-            <Button variant="outline" className="w-full justify-start gap-4 h-auto py-6 bg-zinc-950/50 border-white/5 hover:bg-zinc-900 hover:border-cyan-500/30 transition-all group" asChild>
-              <Link href="/dashboard/wallet">
-                <div className="w-12 h-12 rounded-lg bg-zinc-900 border border-white/10 flex items-center justify-center group-hover:border-cyan-500/20 transition-colors">
-                  <DollarSign className="w-6 h-6 text-emerald-400" />
-                </div>
-                <div className="text-left flex-1">
-                  <div className="font-medium text-white text-base">View Wallet</div>
-                  <div className="text-xs text-zinc-500 mt-1">Manage funds & payouts</div>
-                </div>
-              </Link>
-            </Button>
-
-            <Button variant="outline" className="w-full justify-start gap-4 h-auto py-6 bg-zinc-950/50 border-white/5 hover:bg-zinc-900 hover:border-cyan-500/30 transition-all group" asChild>
+            <Button variant="outline" className="w-full justify-start gap-4 h-auto py-6 bg-zinc-950/50 border-white/5 hover:bg-zinc-900 hover:border-red-500/30 transition-all group cut-corners" asChild>
               <Link href="/dashboard/leaderboard">
-                <div className="w-12 h-12 rounded-lg bg-zinc-900 border border-white/10 flex items-center justify-center group-hover:border-cyan-500/20 transition-colors">
-                  <Trophy className="w-6 h-6 text-amber-400" />
+                <div className="w-12 h-12 bg-zinc-900 border border-white/10 flex items-center justify-center group-hover:border-red-500/20 transition-colors cut-corners-sm">
+                  <Trophy className="w-6 h-6 text-red-500" />
                 </div>
                 <div className="text-left flex-1">
-                  <div className="font-medium text-white text-base">Leaderboard</div>
-                  <div className="text-xs text-zinc-500 mt-1">View top traders</div>
+                  <div className="font-bold text-white text-base font-mono uppercase">Leaderboard</div>
+                  <div className="text-xs text-zinc-500 mt-1 font-mono">Top performing agents</div>
                 </div>
               </Link>
             </Button>
           </div>
+        </Card>
+
+        {/* Agent Activity Feed */}
+        <Card className="bg-zinc-950 border border-white/10 p-8 cut-corners">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-white font-heading uppercase tracking-wide">Agent Activity</h2>
+            <div className="flex items-center gap-2 px-3 py-1 border border-red-500/20 bg-red-950/10 cut-corners-sm">
+              <div className="w-1.5 h-1.5 bg-red-500 animate-pulse" />
+              <span className="text-[10px] font-mono text-red-400 uppercase">Live</span>
+            </div>
+          </div>
+          <AgentActivityFeed />
         </Card>
         </div>
       </div>
