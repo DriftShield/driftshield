@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runAgentCycle } from "@/lib/agents/orchestrator";
+import { getActiveAgents } from "@/lib/agents/registry";
 
 /**
- * Cron-compatible endpoint to run all agents in sequence.
+ * Cron-compatible endpoint to run ALL registered agents in sequence.
  *
  * Can be triggered by:
  * - Vercel Cron (vercel.json)
@@ -16,15 +17,6 @@ import { runAgentCycle } from "@/lib/agents/orchestrator";
  * If CRON_SECRET is not set, the endpoint is open (for development).
  */
 
-const AGENTS = [
-  { id: "agent-alpha-hunter", name: "Alpha Hunter" },
-  { id: "agent-sigma-analyst", name: "Sigma Analyst" },
-  { id: "agent-degen-bot", name: "Degen Bot" },
-  { id: "agent-oracle-prime", name: "Oracle Prime" },
-  { id: "agent-flash-trader", name: "Flash Trader" },
-  { id: "agent-neo-scientist", name: "Neo Scientist" },
-];
-
 export async function GET(request: NextRequest) {
   // Security check
   const cronSecret = process.env.CRON_SECRET;
@@ -35,12 +27,15 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Use dynamic registry instead of hardcoded list
+  const agents = getActiveAgents();
+
   const startTime = Date.now();
   const results: any[] = [];
   const errors: string[] = [];
 
   // Run agents in sequence to avoid rate limiting on RPC
-  for (const agent of AGENTS) {
+  for (const agent of agents) {
     try {
       const result = await runAgentCycle(agent.id, agent.name);
       results.push({
@@ -70,7 +65,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     success: true,
     summary: {
-      agents_run: AGENTS.length,
+      agents_run: agents.length,
       total_trades: results.reduce((s, r) => s + (r.tradesExecuted || 0), 0),
       total_markets_created: results.reduce((s, r) => s + (r.marketsCreated || 0), 0),
       total_resolved: results.reduce((s, r) => s + (r.marketsResolved || 0), 0),

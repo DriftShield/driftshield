@@ -14,4 +14,8 @@ export interface Agent {
   apiKey: string;
   status: "active" | "inactive";
   createdAt: string;
+  /** Optional description of the agent's strategy */
+  strategy?: string;
+  /** Whether this is a built-in demo agent or user-created */
+  isBuiltIn: boolean;
 }
