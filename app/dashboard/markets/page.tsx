@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Search, TrendingUp, Filter, Clock, Loader2, Grid3X3, Binary, Bot, MessageSquare } from "lucide-react";
 import Link from "next/link";
-import { useConnection } from "@solana/wallet-adapter-react";
+import { Connection } from "@solana/web3.js";
 import { AgentThesisFeed } from "@/components/markets/agent-thesis-feed";
 import { getMarketPDA, PROGRAM_ID } from "@/lib/solana/prediction-bets";
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
@@ -17,8 +17,10 @@ import { Market, BinaryMarket, MultiOutcomeMarket, isBinaryMarket, isMultiOutcom
 import { MultiOutcomeCard } from "@/components/markets/multi-outcome-card";
 import { MARKET_BLACKLIST } from "@/lib/constants/market-blacklist";
 
+const RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com";
+
 export default function MarketsPage() {
-  const { connection } = useConnection();
+  const [connection] = useState(() => new Connection(RPC_URL, "confirmed"));
   const [markets, setMarkets] = useState<Market[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');

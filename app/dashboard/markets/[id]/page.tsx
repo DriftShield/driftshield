@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { DashboardNav } from "@/components/dashboard-nav";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useConnection } from "@solana/wallet-adapter-react";
+import { Connection } from "@solana/web3.js";
 import { getMarketPDA, PROGRAM_ID } from "@/lib/solana/prediction-bets";
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
 import IDL from '@/lib/solana/prediction_bets_idl.json';
@@ -53,10 +53,12 @@ interface TradeEntry {
   price?: number;
 }
 
+const RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com";
+
 export default function MarketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: marketId } = use(params);
   const router = useRouter();
-  const { connection } = useConnection();
+  const [connection] = useState(() => new Connection(RPC_URL, "confirmed"));
 
   const [market, setMarket] = useState<Market | null>(null);
   const [loading, setLoading] = useState(true);
